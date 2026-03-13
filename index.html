@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CloudVault — Free Unlimited Storage</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070712;--s1:#0f0f1e;--s2:#171728;--s3:#1f1f35;--bd:#252540;--bd2:#32325a;--p:#6c63ff;--p2:#8b5cf6;--g:#10b981;--r:#ef4444;--y:#f59e0b;--b:#3b82f6;--tx:#e2e2f0;--mu:#6b6b90;--mu2:#9090b0}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 15% 15%,rgba(108,99,255,.07) 0%,transparent 55%),radial-gradient(ellipse at 85% 85%,rgba(139,92,246,.04) 0%,transparent 55%);pointer-events:none;z-index:0}
+.page{display:none;position:relative;z-index:1}.page.active{display:block}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:300;height:58px;background:rgba(7,7,18,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem}
+.logo{font-size:1.15rem;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:.5rem}
+.logo-box{width:30px;height:30px;background:linear-gradient(135deg,var(--p),var(--p2));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.logo span{background:linear-gradient(135deg,var(--p),var(--p2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-r{display:flex;gap:.6rem;align-items:center}
+
+/* BTN */
+.btn{padding:.45rem 1rem;border-radius:8px;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;font-size:.855rem;transition:all .2s;display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap}
+.btn-ghost{background:transparent;color:var(--mu2);border:1px solid var(--bd)}.btn-ghost:hover{color:var(--tx);border-color:var(--p)}
+.btn-primary{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff}.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(108,99,255,.4)}
+.btn-success{background:var(--g);color:#fff}.btn-success:hover{filter:brightness(1.1)}
+.btn-danger{background:var(--r);color:#fff}
+.btn-warn{background:var(--y);color:#0a0a0a}
+.btn-sm{padding:.3rem .75rem;font-size:.78rem;border-radius:6px}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.btn-outline{background:transparent;color:var(--p);border:1px solid var(--p)}.btn-outline:hover{background:rgba(108,99,255,.1)}
+
+/* FORM */
+.inp{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:.68rem 1rem;color:var(--tx);font-family:'Outfit',sans-serif;font-size:.875rem;outline:none;transition:border-color .2s}.inp:focus{border-color:var(--p)}.inp::placeholder{color:var(--mu)}
+label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bottom:.35rem}
+.fg{margin-bottom:1rem}
+.alert{padding:.75rem 1rem;border-radius:9px;font-size:.855rem;margin-bottom:.9rem;display:none}
+.alert.show{display:flex;align-items:center;gap:.5rem}
+.al-s{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--g)}
+.al-e{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--r)}
+.al-i{background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.3);color:var(--p)}
+.al-w{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--y)}
+
+/* LANDING */
+#page-land{min-height:100vh}
+.hero{padding:120px 1.5rem 70px;max-width:860px;margin:0 auto;text-align:center}
+.pill{display:inline-flex;align-items:center;gap:.4rem;background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.25);color:var(--p);padding:.3rem .9rem;border-radius:100px;font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:1.8rem}
+.hero h1{font-size:clamp(2rem,7vw,4.2rem);font-weight:800;line-height:1.1;margin-bottom:1.1rem}
+.hero h1 em{font-style:normal;background:linear-gradient(135deg,var(--p),#a78bfa,var(--g));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{font-size:1.05rem;color:var(--mu2);max-width:520px;margin:0 auto 2.2rem;line-height:1.7}
+.hero-cta{display:flex;gap:.9rem;justify-content:center;flex-wrap:wrap}
+.hero-cta .btn{padding:.8rem 1.8rem;font-size:.95rem;border-radius:11px}
+.feats{padding:50px 1.5rem;max-width:1050px;margin:0 auto}
+.fg2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.1rem}
+.fc{background:var(--s1);border:1px solid var(--bd);border-radius:15px;padding:1.6rem;transition:all .3s}
+.fc:hover{border-color:var(--p);transform:translateY(-3px)}
+.fi{font-size:1.9rem;margin-bottom:.8rem}
+.fc h3{font-size:.95rem;font-weight:700;margin-bottom:.4rem}
+.fc p{color:var(--mu2);font-size:.835rem;line-height:1.6}
+.pricing{padding:50px 1.5rem;max-width:720px;margin:0 auto}
+.sec-h{text-align:center;font-size:1.7rem;font-weight:800;margin-bottom:2.2rem}
+.pg{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:1.3rem}
+.pc{background:var(--s1);border:1px solid var(--bd);border-radius:18px;padding:1.8rem}
+.pc.hot{border-color:var(--p);background:linear-gradient(135deg,rgba(108,99,255,.07),rgba(139,92,246,.04));position:relative}
+.hot-b{position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;font-size:.68rem;font-weight:700;padding:.25rem .85rem;border-radius:100px;white-space:nowrap}
+.pln{font-size:.73rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mu);margin-bottom:.4rem}
+.ppr{font-size:2rem;font-weight:800;margin-bottom:.25rem}
+.ppr small{font-size:.82rem;color:var(--mu);font-weight:400}
+.pds{font-size:.82rem;color:var(--mu2);margin-bottom:1.3rem}
+.pul{list-style:none;margin-bottom:1.6rem}
+.pul li{display:flex;align-items:center;gap:.55rem;padding:.3rem 0;font-size:.845rem;color:var(--mu2)}
+.pul li::before{content:'✓';color:var(--g);font-weight:700;flex-shrink:0}
+.pc .btn{width:100%;padding:.75rem;border-radius:11px;justify-content:center}
+
+/* AUTH */
+.aw{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:5rem 1.5rem 2rem}
+.ab{background:var(--s1);border:1px solid var(--bd);border-radius:22px;padding:2.3rem;width:100%;max-width:410px}
+.ab h2{font-size:1.6rem;font-weight:800;margin-bottom:.25rem}
+.ab .sub{color:var(--mu2);font-size:.875rem;margin-bottom:1.8rem}
+.ab .btn{width:100%;padding:.8rem;border-radius:11px;justify-content:center;margin-top:.25rem}
+.aln{text-align:center;margin-top:1.3rem;font-size:.845rem;color:var(--mu2)}
+.aln a{color:var(--p);cursor:pointer}.aln a:hover{text-decoration:underline}
+
+/* DASHBOARD */
+#page-dash{min-height:100vh;padding-top:58px}
+.dl{display:flex;min-height:calc(100vh - 58px)}
+.sb{width:215px;min-height:calc(100vh - 58px);background:var(--s1);border-right:1px solid var(--bd);padding:1rem .75rem;position:fixed;top:58px;left:0;bottom:0;display:flex;flex-direction:column;overflow-y:auto}
+.sbn{list-style:none;flex:1}
+.sbn li{margin-bottom:.15rem}
+.sbn a{display:flex;align-items:center;gap:.65rem;padding:.6rem .85rem;border-radius:9px;color:var(--mu2);font-size:.845rem;font-weight:600;cursor:pointer;transition:all .2s}
+.sbn a:hover,.sbn a.on{background:rgba(108,99,255,.11);color:var(--tx)}
+.sbn a.on{color:var(--p)}
+.si{font-size:.95rem;width:18px;text-align:center}
+.sbf{padding:.75rem}
+.stl{font-size:.7rem;color:var(--mu);margin-bottom:.35rem}
+.stb{background:var(--s3);border-radius:100px;height:5px;overflow:hidden;margin-bottom:.28rem}
+.stf{height:100%;background:linear-gradient(90deg,var(--p),var(--p2));border-radius:100px;transition:width .5s}
+.stt{font-size:.7rem;color:var(--mu)}
+.sbl{display:flex;align-items:center;gap:.6rem;padding:.6rem .85rem;border-radius:9px;color:var(--mu2);font-size:.845rem;font-weight:600;cursor:pointer;margin-top:.4rem;transition:all .2s;width:100%;background:none;border:none;font-family:'Outfit',sans-serif}
+.sbl:hover{background:rgba(239,68,68,.1);color:var(--r)}
+.mc{margin-left:215px;flex:1;padding:1.6rem;min-height:calc(100vh - 58px)}
+@media(max-width:768px){.sb{display:none}.mc{margin-left:0}}
+.tab{display:none}.tab.on{display:block}
+.ph{margin-bottom:1.6rem}
+.ph h1{font-size:1.4rem;font-weight:800}
+.ph p{color:var(--mu2);font-size:.845rem;margin-top:.2rem}
+
+/* DRIVE */
+.dtb{display:flex;align-items:center;gap:.65rem;margin-bottom:1.1rem;flex-wrap:wrap}
+.bc{display:flex;align-items:center;gap:.25rem;font-size:.845rem;flex:1;min-width:0;flex-wrap:wrap}
+.bci{color:var(--p);cursor:pointer;font-weight:600}.bci:hover{text-decoration:underline}
+.bcs{color:var(--mu)}.bcc{color:var(--tx);font-weight:600}
+.dg{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:.8rem;margin-bottom:1.3rem}
+.di{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.1rem .9rem;cursor:pointer;transition:all .2s;position:relative;user-select:none}
+.di:hover{border-color:var(--p);background:var(--s2)}
+.di-ic{font-size:2rem;margin-bottom:.6rem;display:block}
+.di-nm{font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.15rem}
+.di-mt{font-size:.7rem;color:var(--mu)}
+/* 3-dot menu */
+.dot-btn{position:absolute;top:.5rem;right:.5rem;background:rgba(255,255,255,.05);border:none;color:var(--mu2);width:24px;height:24px;border-radius:6px;cursor:pointer;font-size:.8rem;display:none;align-items:center;justify-content:center;transition:all .2s}
+.di:hover .dot-btn{display:flex}
+.dot-btn:hover{background:var(--s3);color:var(--tx)}
+.ctx-menu{position:absolute;top:2rem;right:.5rem;background:var(--s2);border:1px solid var(--bd2);border-radius:10px;padding:.4rem;z-index:100;min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ctx-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .75rem;border-radius:7px;font-size:.82rem;cursor:pointer;transition:all .15s;color:var(--tx);white-space:nowrap}
+.ctx-item:hover{background:rgba(108,99,255,.12)}
+.ctx-item.red{color:var(--r)}.ctx-item.red:hover{background:rgba(239,68,68,.1)}
+
+/* FILE LIST */
+.fl{display:flex;flex-direction:column;gap:.55rem}
+.fr{background:var(--s1);border:1px solid var(--bd);border-radius:11px;padding:.85rem 1.1rem;display:flex;align-items:center;gap:.9rem;transition:all .2s;position:relative}
+.fr:hover{border-color:var(--bd2)}
+.fr-ic{font-size:1.5rem;flex-shrink:0}
+.fr-in{flex:1;min-width:0}
+.fr-nm{font-size:.845rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr-mt{font-size:.72rem;color:var(--mu);margin-top:.12rem}
+.fr-id{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--p);background:rgba(108,99,255,.1);padding:.12rem .45rem;border-radius:5px;flex-shrink:0}
+.fr-ac{display:flex;gap:.35rem;flex-shrink:0}
+.cb{display:flex;gap:.5rem;align-items:center}
+.chk{width:16px;height:16px;accent-color:var(--p);cursor:pointer;flex-shrink:0}
+
+/* EMPTY */
+.emp{text-align:center;padding:3.5rem 2rem;color:var(--mu)}
+.emp-ic{font-size:3.2rem;margin-bottom:.8rem;opacity:.45}
+.emp h3{color:var(--tx);font-size:.95rem;margin-bottom:.35rem}
+
+/* UPLOAD */
+.uz{background:var(--s1);border:2px dashed var(--bd);border-radius:16px;padding:2.2rem 1.3rem;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:1.1rem;position:relative}
+.uz:hover,.uz.drag{border-color:var(--p);background:rgba(108,99,255,.04)}
+.uz input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.uz-ic{font-size:2.3rem;margin-bottom:.7rem}
+.uz-t{font-size:.95rem;font-weight:700;margin-bottom:.25rem}
+.uz-s{font-size:.78rem;color:var(--mu)}
+.uz-f{font-size:.82rem;color:var(--p);font-weight:700;margin-top:.45rem}
+.uopts{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.2rem;margin-bottom:1.1rem}
+.uo-t{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin-bottom:.9rem;font-weight:700}
+
+/* PROGRESS */
+.pbox{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.2rem;margin-bottom:1.1rem;display:none}
+.pbox.show{display:block}
+.pt{display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem}
+.pm{font-size:.845rem;color:var(--mu2)}
+.pp{font-size:1.25rem;font-weight:800;color:var(--p)}
+.pb{background:var(--s3);border-radius:100px;height:8px;overflow:hidden}
+.pf{height:100%;background:linear-gradient(90deg,var(--p),var(--p2));border-radius:100px;transition:width .3s;width:0%}
+.upload-queue{margin-top:1rem}
+.uq-item{display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid var(--bd);font-size:.82rem}
+.uq-item:last-child{border-bottom:none}
+.uq-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.uq-status{font-size:.75rem;font-weight:600}
+.uq-done{color:var(--g)}.uq-ing{color:var(--p)}.uq-wait{color:var(--mu)}.uq-err{color:var(--r)}
+
+/* RESULT */
+.rbox{background:linear-gradient(135deg,rgba(16,185,129,.07),rgba(108,99,255,.07));border:1px solid rgba(16,185,129,.3);border-radius:13px;padding:1.2rem;margin-bottom:1.1rem;display:none}
+.rbox.show{display:block}
+.rbox h3{color:var(--g);margin-bottom:.7rem;font-size:.95rem}
+
+/* LOCK */
+.lock{position:fixed;inset:0;background:rgba(7,7,18,.96);z-index:500;display:none;align-items:center;justify-content:center;padding:1.5rem}
+.lock.show{display:flex}
+.lb{background:var(--s1);border:1px solid var(--bd);border-radius:22px;padding:2.3rem;width:100%;max-width:390px;text-align:center}
+.lb-ic{font-size:2.8rem;margin-bottom:.9rem}
+.lb h3{font-size:1.2rem;font-weight:800;margin-bottom:.35rem}
+.lb p{color:var(--mu2);font-size:.845rem;margin-bottom:1.3rem}
+.lb .inp{text-align:center;font-family:'JetBrains Mono',monospace;font-size:1rem;letter-spacing:.12em}
+.lbt{display:flex;gap:.65rem;margin-top:1.1rem}
+.lbt .btn{flex:1;justify-content:center;padding:.75rem}
+
+/* MODAL */
+.modal{position:fixed;inset:0;background:rgba(7,7,18,.92);z-index:400;display:none;align-items:center;justify-content:center;padding:1.5rem}
+.modal.show{display:flex}
+.mb{background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:1.9rem;width:100%;max-width:420px}
+.mb h3{font-size:1.15rem;font-weight:800;margin-bottom:.25rem}
+.mb .sub{color:var(--mu2);font-size:.835rem;margin-bottom:1.4rem;margin-top:.25rem}
+.mbt{display:flex;gap:.65rem;margin-top:1.1rem}
+.mbt .btn{flex:1;justify-content:center;padding:.7rem}
+
+/* PW REVEAL */
+.pw-rev{background:var(--s2);border:1px solid var(--bd2);border-radius:11px;padding:1.1rem;text-align:center;margin-top:.9rem}
+.pw-rev p{font-size:.78rem;color:var(--y);margin-bottom:.5rem}
+.pw-val{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:700;background:var(--s3);padding:.55rem .9rem;border-radius:7px;margin-bottom:.65rem;letter-spacing:.08em}
+.pw-rev small{color:var(--mu);font-size:.72rem}
+
+/* PAYMENT */
+.pay-wrap{max-width:560px}
+.ngd{background:linear-gradient(135deg,#f07800,#d96b00);border-radius:16px;padding:1.6rem;text-align:center;margin-bottom:1.1rem;color:#fff}
+.ngd h3{font-size:1.05rem;margin-bottom:.28rem;opacity:.9}
+.ngd-num{font-family:'JetBrains Mono',monospace;font-size:1.75rem;font-weight:700;letter-spacing:.1em;margin:.4rem 0}
+.ngd-note{font-size:.78rem;opacity:.75}
+.psel{display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:1.1rem}
+.po{background:var(--s2);border:2px solid var(--bd);border-radius:11px;padding:.9rem .7rem;text-align:center;cursor:pointer;transition:all .2s}
+.po.sel{border-color:var(--p);background:rgba(108,99,255,.1)}
+.po .tb{font-size:1.2rem;font-weight:800;color:var(--p)}
+.po .pr{font-size:.82rem;color:var(--g);font-weight:700;margin:.15rem 0}
+.po .mo{font-size:.72rem;color:var(--mu)}
+.steps{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.2rem;margin-bottom:1.1rem}
+.step{display:flex;gap:.85rem;padding:.55rem 0;border-bottom:1px solid var(--bd)}
+.step:last-child{border-bottom:none}
+.sn{width:24px;height:24px;background:rgba(108,99,255,.14);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--p);flex-shrink:0}
+.st{font-size:.845rem;color:var(--mu2);padding-top:.18rem}
+.st strong{color:var(--tx)}
+
+/* STATS */
+.sr{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.8rem;margin-bottom:1.6rem}
+.sc{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.1rem}
+.sl{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin-bottom:.35rem}
+.sv{font-size:1.5rem;font-weight:800}
+.sv.p{color:var(--p)}.sv.g{color:var(--g)}.sv.y{color:var(--y)}
+
+/* SEARCH */
+.sw{position:relative;margin-bottom:1.1rem}
+.sw input{padding-left:2.6rem}
+.sw::before{content:'🔍';position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:.82rem}
+
+/* SELECTION BAR */
+.sel-bar{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:var(--s2);border:1px solid var(--p);border-radius:100px;padding:.6rem 1.2rem;display:none;align-items:center;gap:.8rem;z-index:200;box-shadow:0 4px 20px rgba(108,99,255,.3)}
+.sel-bar.show{display:flex}
+.sel-count{font-size:.845rem;font-weight:700;color:var(--p)}
+
+/* DOWNLOAD MODAL */
+.dl-parts{margin-top:1rem}
+.dlp{background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:.9rem;margin-bottom:.6rem}
+.dlp-t{font-size:.82rem;font-weight:700;margin-bottom:.5rem}
+.dlp-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.4rem .85rem;background:linear-gradient(135deg,var(--p),var(--p2));color:#fff;border-radius:7px;font-size:.78rem;font-weight:600;cursor:pointer;text-decoration:none;border:none;font-family:'Outfit',sans-serif}
+
+/* ADMIN */
+.admin-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.admin-table th{text-align:left;padding:.7rem 1rem;background:var(--s2);color:var(--mu);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.admin-table td{padding:.8rem 1rem;border-bottom:1px solid var(--bd)}
+.admin-table tr:hover td{background:var(--s2)}
+.badge{display:inline-block;padding:.2rem .6rem;border-radius:100px;font-size:.72rem;font-weight:700}
+.badge-p{background:rgba(245,158,11,.15);color:var(--y)}
+.badge-a{background:rgba(16,185,129,.15);color:var(--g)}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+@keyframes fu{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fu{animation:fu .25s ease}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo" onclick="goHome()">
+    <div class="logo-box">☁️</div>
+    <span>CloudVault</span>
+  </div>
+  <div class="nav-r" id="nav-r">
+    <button class="btn btn-ghost" onclick="showPage('login')">Login</button>
+    <button class="btn btn-primary" onclick="showPage('register')">Get Started Free</button>
+  </div>
+</nav>
+
+<!-- LANDING -->
+<div id="page-land" class="page active">
+  <div class="hero">
+    <div class="pill">⚡ Unlimited Free Storage</div>
+    <h1>Your Files.<br><em>Safe Forever.</em></h1>
+    <p>Upload anything — photos, videos, documents. Auto-split, backed up to 4 Telegram channels. Organized in password-protected folders.</p>
+    <div class="hero-cta">
+      <button class="btn btn-primary" onclick="showPage('register')">Start Free →</button>
+      <button class="btn btn-ghost" onclick="showPage('login')">Sign In</button>
+    </div>
+  </div>
+  <div class="feats">
+    <div class="fg2">
+      <div class="fc"><div class="fi">🗂️</div><h3>Drive-Style Folders</h3><p>Create folders & sub-folders. Search files. Just like Google Drive but with unlimited storage.</p></div>
+      <div class="fc"><div class="fi">🔐</div><h3>Folder Password</h3><p>14-digit auto-generated password per folder. Nobody can access your files without it.</p></div>
+      <div class="fc"><div class="fi">📤</div><h3>Bulk Upload</h3><p>Select hundreds of files at once. Upload continues in background even if you switch tabs.</p></div>
+      <div class="fc"><div class="fi">⬇️</div><h3>Direct Download</h3><p>Download files directly from our website. No Telegram needed — everything is seamless.</p></div>
+      <div class="fc"><div class="fi">🔀</div><h3>Auto Split & Backup</h3><p>Large files split into 1600MB chunks, backed up across 4 Telegram channels + GoFile.</p></div>
+      <div class="fc"><div class="fi">💰</div><h3>৳5/TB for 6 Months</h3><p>Only ৳5 per terabyte for 6 months. Pay via Nagad Send Money — activated in 1 hour.</p></div>
+    </div>
+  </div>
+  <div class="pricing">
+    <div class="sec-h">Pricing</div>
+    <div class="pg">
+      <div class="pc">
+        <div class="pln">Free</div>
+        <div class="ppr">৳0 <small>/ forever</small></div>
+        <div class="pds">For everyone</div>
+        <ul class="pul">
+          <li>100GB storage</li><li>Folder system</li><li>Password protection</li><li>Bulk upload</li><li>Direct download</li>
+        </ul>
+        <button class="btn btn-outline" onclick="showPage('register')">Get Started</button>
+      </div>
+      <div class="pc hot">
+        <div class="hot-b">⭐ POPULAR</div>
+        <div class="pln">Paid</div>
+        <div class="ppr">৳5 <small>/ TB / 6mo</small></div>
+        <div class="pds">Scale as needed</div>
+        <ul class="pul">
+          <li>1TB = ৳5 · 2TB = ৳10</li><li>5TB = ৳25 · 10TB = ৳50</li><li>Nagad Send Money</li><li>Activated in 1 hour</li><li>Renew every 6 months</li>
+        </ul>
+        <button class="btn btn-primary" onclick="showPage('register')">Buy Storage →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="page-login" class="page">
+  <div class="aw">
+    <div class="ab fu">
+      <h2>Welcome back</h2>
+      <div class="sub">Sign in to CloudVault</div>
+      <div class="alert" id="li-al"></div>
+      <div class="fg"><label>Email</label><input class="inp" id="li-em" type="email" placeholder="your@email.com"></div>
+      <div class="fg"><label>Password</label><input class="inp" id="li-pw" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-primary" onclick="doLogin()" id="li-btn">Sign In</button>
+      <div class="aln">No account? <a onclick="showPage('register')">Register free</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div id="page-register" class="page">
+  <div class="aw">
+    <div class="ab fu">
+      <h2>Create account</h2>
+      <div class="sub">Free unlimited storage, forever</div>
+      <div class="alert" id="r-al"></div>
+      <div class="fg"><label>Full Name</label><input class="inp" id="r-nm" type="text" placeholder="Your name"></div>
+      <div class="fg"><label>Email</label><input class="inp" id="r-em" type="email" placeholder="your@email.com"></div>
+      <div class="fg"><label>Password</label><input class="inp" id="r-pw" type="password" placeholder="Min 6 characters" onkeydown="if(event.key==='Enter')doRegister()"></div>
+      <button class="btn btn-primary" onclick="doRegister()" id="r-btn">Create Free Account</button>
+      <div class="aln">Already have an account? <a onclick="showPage('login')">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="page-dash" class="page">
+  <div class="dl">
+    <aside class="sb">
+      <ul class="sbn">
+        <li><a onclick="switchTab('drive')" id="sb-drive" class="on"><span class="si">🗂️</span> My Drive</a></li>
+        <li><a onclick="switchTab('upload')" id="sb-upload"><span class="si">📤</span> Upload</a></li>
+        <li><a onclick="switchTab('payment')" id="sb-payment"><span class="si">💳</span> Buy Storage</a></li>
+        <li><a onclick="switchTab('profile')" id="sb-profile"><span class="si">👤</span> Profile</a></li>
+      </ul>
+      <div class="sbf">
+        <div class="stl">Storage</div>
+        <div class="stb"><div class="stf" id="stf" style="width:1%"></div></div>
+        <div class="stt" id="stt">Loading...</div>
+        <button class="sbl" onclick="doLogout()">🚪 Logout</button>
+      </div>
+    </aside>
+
+    <main class="mc">
+      <!-- DRIVE TAB -->
+      <div class="tab on" id="tab-drive">
+        <div class="ph"><h1>My Drive</h1><p>Your folders and files</p></div>
+        <div class="dtb">
+          <div class="bc" id="bc"><span class="bci" onclick="goRoot()">☁️ My Drive</span></div>
+          <button class="btn btn-primary btn-sm" onclick="showNewFolder()">📁 New Folder</button>
+        </div>
+        <div class="sw" id="sw" style="display:none">
+          <input class="inp" id="fs" placeholder="Search files..." oninput="filterFiles()">
+        </div>
+        <div id="dc"><div style="text-align:center;padding:3rem;color:var(--mu)"><span class="spin">⏳</span></div></div>
+      </div>
+
+      <!-- UPLOAD TAB -->
+      <div class="tab" id="tab-upload">
+        <div class="ph"><h1>Upload Files</h1><p>Select a folder, then upload one or many files</p></div>
+        <div class="fg">
+          <label>Upload to Folder</label>
+          <select class="inp" id="uf"><option value="">Select a folder...</option></select>
+        </div>
+        <div class="uz" id="uz">
+          <input type="file" id="fi" multiple onchange="filesSelected(this)">
+          <div class="uz-ic">📤</div>
+          <div class="uz-t">Drop files here or click to browse</div>
+          <div class="uz-s">Multiple files supported · Any size · Auto-split 1600MB</div>
+          <div class="uz-f" id="uz-f"></div>
+        </div>
+        <div class="pbox" id="pbox">
+          <div class="pt"><div class="pm" id="pm">Preparing...</div><div class="pp" id="pp">0%</div></div>
+          <div class="pb"><div class="pf" id="pf"></div></div>
+          <div class="upload-queue" id="uq"></div>
+        </div>
+        <div class="rbox" id="rbox"><h3>✅ All uploads complete!</h3><p style="font-size:.82rem;color:var(--mu2);margin-top:.3rem">Files are now in your folder.</p></div>
+        <button class="btn btn-primary" onclick="startUpload()" id="up-btn" style="padding:.85rem 1.8rem;font-size:.95rem">🚀 Upload Files</button>
+      </div>
+
+      <!-- PAYMENT TAB -->
+      <div class="tab" id="tab-payment">
+        <div class="ph"><h1>Buy Storage</h1><p>৳5/TB · 6 months · Nagad Send Money</p></div>
+        <div class="pay-wrap">
+          <div class="ngd">
+            <h3>📱 Nagad Send Money</h3>
+            <div class="ngd-num" id="ngd-num">01935926051</div>
+            <div class="ngd-note">Use "Send Money" option in Nagad app</div>
+          </div>
+          <div style="font-size:.75rem;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.7rem">Select Plan</div>
+          <div class="psel">
+            <div class="po sel" onclick="selPlan(this,1,5)"><div class="tb">1TB</div><div class="pr">৳5</div><div class="mo">6 months</div></div>
+            <div class="po" onclick="selPlan(this,2,10)"><div class="tb">2TB</div><div class="pr">৳10</div><div class="mo">6 months</div></div>
+            <div class="po" onclick="selPlan(this,5,25)"><div class="tb">5TB</div><div class="pr">৳25</div><div class="mo">6 months</div></div>
+          </div>
+          <div class="steps">
+            <div class="step"><div class="sn">1</div><div class="st">Nagad app → <strong>Send Money</strong></div></div>
+            <div class="step"><div class="sn">2</div><div class="st">Send <strong id="pay-am">৳5</strong> to the number above</div></div>
+            <div class="step"><div class="sn">3</div><div class="st">Note your <strong>Transaction ID</strong></div></div>
+            <div class="step"><div class="sn">4</div><div class="st">Submit the form below</div></div>
+            <div class="step"><div class="sn">5</div><div class="st">Activated within <strong>1 hour</strong></div></div>
+          </div>
+          <div class="alert" id="pay-al"></div>
+          <div class="uopts">
+            <div class="uo-t">Submit Payment</div>
+            <div class="fg"><label>Your Nagad Number</label><input class="inp" id="pay-ng" placeholder="01XXXXXXXXX"></div>
+            <div class="fg"><label>Transaction ID</label><input class="inp" id="pay-tx" placeholder="e.g. 8AB1234567" style="font-family:'JetBrains Mono',monospace;letter-spacing:.05em"></div>
+            <button class="btn btn-primary" onclick="submitPayment()" style="padding:.75rem 1.6rem">✅ Submit</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE TAB -->
+      <div class="tab" id="tab-profile">
+        <div class="ph"><h1>Profile</h1></div>
+        <div class="sr">
+          <div class="sc"><div class="sl">Plan</div><div class="sv p" id="pf-plan">-</div></div>
+          <div class="sc"><div class="sl">Expires</div><div class="sv y" id="pf-exp">-</div></div>
+          <div class="sc"><div class="sl">Storage Used</div><div class="sv g" id="pf-st">-</div></div>
+        </div>
+        <div class="uopts" style="max-width:430px">
+          <div class="fg"><div class="sl">Name</div><div style="font-weight:700" id="pf-nm">-</div></div>
+          <div class="fg"><div class="sl">Email</div><div style="font-weight:700" id="pf-em">-</div></div>
+          <div><div class="sl">Member Since</div><div style="font-weight:700" id="pf-si">-</div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- FOLDER LOCK -->
+<div class="lock" id="lock">
+  <div class="lb fu">
+    <div class="lb-ic">🔐</div>
+    <h3 id="lock-nm">Folder Locked</h3>
+    <p>Enter the folder password to access</p>
+    <div class="alert" id="lock-al"></div>
+    <input class="inp" id="lock-pw" type="password" placeholder="Enter folder password" onkeydown="if(event.key==='Enter')verifyLock()">
+    <div class="lbt">
+      <button class="btn btn-ghost" onclick="closeLock()">Cancel</button>
+      <button class="btn btn-primary" onclick="verifyLock()" id="lock-btn">🔓 Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW FOLDER MODAL -->
+<div class="modal" id="mod-folder">
+  <div class="mb fu">
+    <h3>📁 New Folder</h3>
+    <div class="sub">A strong 14-digit password will be generated. <strong style="color:var(--y)">Save it — you can't recover it!</strong></div>
+    <div class="alert" id="fol-al"></div>
+    <div class="fg"><label>Folder Name</label><input class="inp" id="fol-nm" placeholder="e.g. My Videos" onkeydown="if(event.key==='Enter')createFolder()"></div>
+    <div id="pw-reveal" style="display:none">
+      <div class="pw-rev">
+        <p>⚠️ Copy this password now! Not shown again.</p>
+        <div class="pw-val" id="pw-val"></div>
+        <small>This password opens your folder</small>
+      </div>
+      <button class="btn btn-success" style="width:100%;margin-top:.7rem;justify-content:center" onclick="copyPw()">📋 Copy Password & Close</button>
+    </div>
+    <div class="mbt" id="fol-btns">
+      <button class="btn btn-ghost" onclick="closeModal('mod-folder')">Cancel</button>
+      <button class="btn btn-primary" onclick="createFolder()" id="fol-btn">✅ Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENAME FOLDER MODAL -->
+<div class="modal" id="mod-rename">
+  <div class="mb fu">
+    <h3>✏️ Rename Folder</h3>
+    <div class="sub">Enter a new name for this folder</div>
+    <div class="fg"><label>New Name</label><input class="inp" id="ren-nm" placeholder="New folder name" onkeydown="if(event.key==='Enter')doRename()"></div>
+    <div class="mbt">
+      <button class="btn btn-ghost" onclick="closeModal('mod-rename')">Cancel</button>
+      <button class="btn btn-primary" onclick="doRename()">✅ Rename</button>
+    </div>
+  </div>
+</div>
+
+<!-- DOWNLOAD MODAL -->
+<div class="modal" id="mod-dl">
+  <div class="mb fu">
+    <h3>📥 Download File</h3>
+    <div class="alert" id="dl-al"></div>
+    <div id="dl-content"><div style="text-align:center;padding:2rem"><span class="spin">⏳</span></div></div>
+    <div class="mbt">
+      <button class="btn btn-ghost" onclick="closeModal('mod-dl')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SELECTION BAR -->
+<div class="sel-bar" id="sel-bar">
+  <span class="sel-count" id="sel-count">0 selected</span>
+  <button class="btn btn-primary btn-sm" onclick="downloadSelected()">📥 Download Selected</button>
+  <button class="btn btn-danger btn-sm" onclick="deleteSelected()">🗑️ Delete</button>
+  <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕ Clear</button>
+</div>
+
+<script>
+const API = 'https://cloudvault-e5wb.onrender.com';
+const CHUNK_SIZE = 15 * 1024 * 1024; // 15MB per chunk — server uses disk not RAM
+
+let user = null, token = null;
+let curFolderId = null, curFolderName = null;
+let folderStack = [];
+let allFiles = [], allFolders = [];
+let unlocked = new Set();
+let pendingFolderId = null, pendingFolderName = null;
+let newFolderPw = null;
+let renameFolderId = null;
+let selFiles = new Set();
+let plan = { tb: 1, price: 5 };
+let uploadQueue = [];
+let isUploading = false;
+let activeCtxMenu = null;
+
+// ===== INIT =====
+(function(){
+  token = localStorage.getItem('cv_token');
+  const s = localStorage.getItem('cv_user');
+  if (token && s) user = JSON.parse(s);
+  updateNav();
+  // close ctx menus on click
+  document.addEventListener('click', e => {
+    if (activeCtxMenu && !activeCtxMenu.contains(e.target)) {
+      activeCtxMenu.remove(); activeCtxMenu = null;
+    }
+  });
+})();
+
+function goHome(){ user ? showPage('dash') : showPage('land'); }
+
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.getElementById('page-' + (p === 'land' ? 'land' : p === 'login' ? 'login' : p === 'register' ? 'register' : 'dash'))?.classList.add('active');
+  window.scrollTo(0,0); updateNav();
+  if(p === 'dash') loadDash();
+}
+
+function updateNav(){
+  const n = document.getElementById('nav-r');
+  if(user) n.innerHTML = `<span style="font-size:.82rem;color:var(--mu2)">Hi, ${user.name?.split(' ')[0]}</span><button class="btn btn-primary btn-sm" onclick="showPage('dash')">Dashboard</button>`;
+  else n.innerHTML = `<button class="btn btn-ghost" onclick="showPage('login')">Login</button><button class="btn btn-primary" onclick="showPage('register')">Get Started Free</button>`;
+}
+
+// ===== AUTH =====
+async function doLogin(){
+  const em = v('li-em'), pw = v('li-pw');
+  if(!em||!pw) return sa('li-al','Fill all fields','e');
+  const btn = document.getElementById('li-btn');
+  btn.disabled=true; btn.textContent='⏳';
+  try{
+    const d = await post('/api/login',{email:em,password:pw});
+    token=d.token; user=d.user;
+    localStorage.setItem('cv_token',token);
+    localStorage.setItem('cv_user',JSON.stringify(user));
+    showPage('dash');
+  }catch(e){sa('li-al',e.message,'e');}
+  finally{btn.disabled=false; btn.textContent='Sign In';}
+}
+
+async function doRegister(){
+  const nm=v('r-nm'),em=v('r-em'),pw=v('r-pw');
+  if(!nm||!em||!pw) return sa('r-al','Fill all fields','e');
+  if(pw.length<6) return sa('r-al','Password min 6 chars','e');
+  const btn=document.getElementById('r-btn');
+  btn.disabled=true; btn.textContent='⏳';
+  try{
+    const d=await post('/api/register',{name:nm,email:em,password:pw});
+    token=d.token; user=d.user;
+    localStorage.setItem('cv_token',token);
+    localStorage.setItem('cv_user',JSON.stringify(user));
+    showPage('dash');
+  }catch(e){sa('r-al',e.message,'e');}
+  finally{btn.disabled=false; btn.textContent='Create Free Account';}
+}
+
+function doLogout(){
+  localStorage.clear(); user=null; token=null; unlocked.clear();
+  showPage('land');
+}
+
+// ===== DASHBOARD =====
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.sbn a').forEach(x=>x.classList.remove('on'));
+  document.getElementById('tab-'+t)?.classList.add('on');
+  document.getElementById('sb-'+t)?.classList.add('on');
+  if(t==='drive') loadDrive();
+  if(t==='upload') loadFolderDd();
+  if(t==='profile') loadProfile();
+}
+
+async function loadDash(){
+  try{
+    const d=await ag('/api/me');
+    user={...user,...d.user};
+    localStorage.setItem('cv_user',JSON.stringify(user));
+    const used=user.storage_used||0, lim=user.storage_limit||107374182400;
+    document.getElementById('stf').style.width=Math.min((used/lim)*100,100)+'%';
+    document.getElementById('stt').textContent=`${fmtSz(used)} / ${fmtSz(lim)}`;
+  }catch{}
+  loadDrive();
+}
+
+// ===== DRIVE =====
+async function loadDrive(){
+  const dc=document.getElementById('dc');
+  dc.innerHTML=`<div style="text-align:center;padding:3rem;color:var(--mu)"><span class="spin">⏳</span></div>`;
+  document.getElementById('sw').style.display='none';
+  clearSelection();
+
+  try{
+    const params = curFolderId ? `?parent_id=${curFolderId}` : '';
+    const fd = await ag('/api/folders'+params);
+    allFolders = fd.folders||[];
+    let html='';
+
+    if(curFolderId){
+      document.getElementById('sw').style.display='block';
+      const fld = await ag(`/api/files?folder_id=${curFolderId}`);
+      allFiles = fld.files||[];
+
+      if(!allFolders.length && !allFiles.length){
+        html=`<div class="emp"><div class="emp-ic">📂</div><h3>Empty folder</h3><p>Upload files using the Upload tab</p></div>`;
+      } else {
+        if(allFolders.length){
+          html+=`<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin-bottom:.6rem;font-weight:700">Sub-folders</div>`;
+          html+=`<div class="dg">${allFolders.map(f=>folderCard(f)).join('')}</div>`;
+        }
+        if(allFiles.length){
+          html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.6rem">
+            <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);font-weight:700">Files (${allFiles.length})</div>
+            <div style="display:flex;gap:.5rem">
+              <button class="btn btn-ghost btn-sm" onclick="selectAll()">Select All</button>
+            </div>
+          </div>`;
+          html+=`<div class="fl" id="file-list">${allFiles.map(f=>fileRow(f)).join('')}</div>`;
+        }
+      }
+    } else {
+      if(!allFolders.length){
+        html=`<div class="emp"><div class="emp-ic">📁</div><h3>No folders yet</h3><p>Create a folder to get started</p></div>`;
+      } else {
+        html=`<div class="dg">${allFolders.map(f=>folderCard(f)).join('')}</div>`;
+      }
+    }
+
+    dc.innerHTML=html; updateBc();
+  }catch(e){
+    dc.innerHTML=`<div class="alert al-e show">${e.message}</div>`;
+  }
+}
+
+function folderCard(f){
+  return `<div class="di" onclick="openFolder('${f.id}','${esc(f.name)}')">
+    <span class="di-ic">📁</span>
+    <div class="di-nm">${esc(f.name)}</div>
+    <div class="di-mt">${new Date(f.created_at).toLocaleDateString()}</div>
+    <button class="dot-btn" onclick="event.stopPropagation();showCtx(event,'${f.id}','${esc(f.name)}')" title="Options">⋮</button>
+  </div>`;
+}
+
+function fileRow(f){
+  return `<div class="fr fu" data-name="${esc(f.original_name)}" data-id="${f.id}">
+    <input type="checkbox" class="chk" onchange="toggleSel('${f.id}',this)" onclick="event.stopPropagation()">
+    <div class="fr-ic">${fIcon(f.original_name)}</div>
+    <div class="fr-in">
+      <div class="fr-nm">${esc(f.original_name)}</div>
+      <div class="fr-mt">${fmtSz(f.size)} · ${f.total_chunks} part(s) · ${new Date(f.created_at).toLocaleDateString()} · ${f.download_count||0} downloads</div>
+    </div>
+    <span class="fr-id">${f.id}</span>
+    <div class="fr-ac">
+      <button class="btn btn-primary btn-sm" onclick="startDownload('${f.id}')">📥</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteFile('${f.id}')">🗑️</button>
+    </div>
+  </div>`;
+}
+
+function filterFiles(){
+  const q=v('fs').toLowerCase();
+  document.querySelectorAll('#file-list .fr').forEach(r=>{
+    r.style.display=r.dataset.name?.toLowerCase().includes(q)?'':'none';
+  });
+}
+
+function updateBc(){
+  const bc=document.getElementById('bc');
+  let h=`<span class="bci" onclick="goRoot()">☁️ My Drive</span>`;
+  folderStack.forEach((f,i)=>{
+    h+=`<span class="bcs">›</span>`;
+    if(i<folderStack.length-1) h+=`<span class="bci" onclick="goLevel(${i})">${esc(f.name)}</span>`;
+    else h+=`<span class="bcc">${esc(f.name)}</span>`;
+  });
+  bc.innerHTML=h;
+}
+
+function goRoot(){ curFolderId=null; curFolderName=null; folderStack=[]; loadDrive(); }
+function goLevel(i){ folderStack=folderStack.slice(0,i+1); const f=folderStack[folderStack.length-1]; curFolderId=f.id; curFolderName=f.name; loadDrive(); }
+
+function openFolder(id,name){
+  if(!unlocked.has(id)){
+    pendingFolderId=id; pendingFolderName=name;
+    document.getElementById('lock-nm').textContent=name;
+    document.getElementById('lock-pw').value='';
+    document.getElementById('lock-al').className='alert';
+    document.getElementById('lock').classList.add('show');
+    setTimeout(()=>document.getElementById('lock-pw').focus(),100);
+    return;
+  }
+  navFolder(id,name);
+}
+
+function navFolder(id,name){
+  folderStack.push({id,name}); curFolderId=id; curFolderName=name; loadDrive();
+}
+
+function closeLock(){ document.getElementById('lock').classList.remove('show'); pendingFolderId=null; }
+
+async function verifyLock(){
+  const pw=v('lock-pw');
+  if(!pw) return;
+  const btn=document.getElementById('lock-btn');
+  btn.disabled=true; btn.textContent='⏳';
+  try{
+    const d=await ap(`/api/folders/${pendingFolderId}/verify`,{password:pw});
+    if(d.valid){ unlocked.add(pendingFolderId); const n=pendingFolderName; closeLock(); navFolder(pendingFolderId,n); }
+    else sa('lock-al','Wrong password!','e');
+  }catch(e){sa('lock-al',e.message,'e');}
+  finally{btn.disabled=false; btn.textContent='🔓 Unlock';}
+}
+
+// ===== 3-DOT CONTEXT MENU =====
+function showCtx(event, folderId, folderName){
+  event.stopPropagation();
+  if(activeCtxMenu){ activeCtxMenu.remove(); activeCtxMenu=null; }
+  const menu = document.createElement('div');
+  menu.className='ctx-menu';
+  menu.innerHTML=`
+    <div class="ctx-item" onclick="startRename('${folderId}','${folderName}')">✏️ Rename</div>
+    <div class="ctx-item" onclick="downloadFolder('${folderId}','${folderName}')">📥 Download Folder</div>
+    <div class="ctx-item red" onclick="deleteFolder('${folderId}')">🗑️ Delete</div>
+  `;
+  const di = event.target.closest('.di');
+  di.style.position='relative';
+  di.appendChild(menu);
+  activeCtxMenu=menu;
+}
+
+function startRename(id,name){
+  renameFolderId=id;
+  document.getElementById('ren-nm').value=name;
+  document.getElementById('mod-rename').classList.add('show');
+  if(activeCtxMenu){activeCtxMenu.remove();activeCtxMenu=null;}
+  setTimeout(()=>document.getElementById('ren-nm').focus(),100);
+}
+
+async function doRename(){
+  const nm=v('ren-nm');
+  if(!nm) return;
+  try{
+    await ap(`/api/folders/${renameFolderId}`,{name:nm},'PATCH');
+    closeModal('mod-rename'); loadDrive();
+  }catch(e){alert('Error: '+e.message);}
+}
+
+// ===== FOLDER CREATE =====
+function showNewFolder(){
+  document.getElementById('fol-nm').value='';
+  document.getElementById('pw-reveal').style.display='none';
+  document.getElementById('fol-btns').style.display='flex';
+  document.getElementById('fol-al').className='alert';
+  document.getElementById('mod-folder').classList.add('show');
+  newFolderPw=null;
+  setTimeout(()=>document.getElementById('fol-nm').focus(),100);
+}
+
+async function createFolder(){
+  const nm=v('fol-nm');
+  if(!nm) return sa('fol-al','Enter folder name','e');
+  const btn=document.getElementById('fol-btn');
+  btn.disabled=true; btn.textContent='⏳';
+  try{
+    const d=await ap('/api/folders',{name:nm,parent_id:curFolderId});
+    newFolderPw=d.password;
+    document.getElementById('pw-val').textContent=newFolderPw;
+    document.getElementById('pw-reveal').style.display='block';
+    document.getElementById('fol-btns').style.display='none';
+    unlocked.add(d.folder.id);
+    loadDrive();
+  }catch(e){sa('fol-al',e.message,'e');}
+  finally{btn.disabled=false; btn.textContent='✅ Create';}
+}
+
+function copyPw(){
+  if(newFolderPw){
+    navigator.clipboard.writeText(newFolderPw).then(()=>{
+      closeModal('mod-folder');
+    });
+  }
+}
+
+async function deleteFolder(id){
+  if(activeCtxMenu){activeCtxMenu.remove();activeCtxMenu=null;}
+  if(!confirm('Delete this folder and all its contents? This cannot be undone.')) return;
+  try{ await aDel(`/api/folders/${id}`); unlocked.delete(id); loadDrive(); }
+  catch(e){ alert('Error: '+e.message); }
+}
+
+async function downloadFolder(id, name){
+  if(activeCtxMenu){activeCtxMenu.remove();activeCtxMenu=null;}
+  // Get all files in folder and trigger downloads
+  if(!unlocked.has(id)){
+    alert('Please unlock the folder first');
+    return;
+  }
+  const pw = prompt(`Enter password for folder "${name}" to download all files:`);
+  if(!pw) return;
+  try{
+    const d = await ag(`/api/files?folder_id=${id}`);
+    const files = d.files || [];
+    if(!files.length){ alert('No files in this folder'); return; }
+    for(const f of files){ await downloadFileDirectly(f.id, pw); await sleep(500); }
+  }catch(e){ alert('Error: '+e.message); }
+}
+
+// ===== UPLOAD =====
+async function loadFolderDd(){
+  try{
+    const d=await ag('/api/folders');
+    const sel=document.getElementById('uf');
+    sel.innerHTML='<option value="">Select a folder...</option>';
+    const addF = async (folders, prefix) => {
+      for(const f of folders){
+        const o=document.createElement('option');
+        o.value=f.id; o.textContent=prefix+f.name;
+        sel.appendChild(o);
+        try{
+          const sub=await ag(`/api/folders?parent_id=${f.id}`);
+          if(sub.folders?.length) await addF(sub.folders, prefix+'  └ ');
+        }catch{}
+      }
+    };
+    await addF(d.folders||[],'');
+    if(curFolderId) sel.value=curFolderId;
+  }catch{}
+}
+
+function filesSelected(input){
+  const files=[...input.files];
+  if(!files.length) return;
+  uploadQueue=files;
+  const el=document.getElementById('uz-f');
+  el.textContent=`✅ ${files.length} file(s) selected (${fmtSz(files.reduce((a,f)=>a+f.size,0))})`;
+}
+
+async function startUpload(){
+  const folderId=v('uf');
+  if(!folderId) return alert('Please select a folder');
+  if(!uploadQueue.length) return alert('Please select files');
+
+  // Check folder unlocked
+  if(!unlocked.has(folderId)){
+    pendingFolderId=folderId;
+    const opt=document.getElementById('uf').selectedOptions[0];
+    pendingFolderName=opt?.textContent?.trim()||'Folder';
+    document.getElementById('lock-nm').textContent=pendingFolderName;
+    document.getElementById('lock-pw').value='';
+    document.getElementById('lock-al').className='alert';
+    document.getElementById('lock').classList.add('show');
+    return;
+  }
+
+  isUploading=true;
+  const btn=document.getElementById('up-btn');
+  btn.disabled=true; btn.textContent='⏳ Uploading...';
+  document.getElementById('pbox').classList.add('show');
+  document.getElementById('rbox').classList.remove('show');
+
+  // Build queue UI
+  const uqEl=document.getElementById('uq');
+  uqEl.innerHTML=uploadQueue.map((f,i)=>`
+    <div class="uq-item" id="uqi-${i}">
+      <span>${fIcon(f.name)}</span>
+      <span class="uq-name">${esc(f.name)}</span>
+      <span class="uq-status uq-wait" id="uqs-${i}">Waiting...</span>
+    </div>`).join('');
+
+  let totalDone=0;
+  for(let i=0; i<uploadQueue.length; i++){
+    const file=uploadQueue[i];
+    document.getElementById(`uqs-${i}`).textContent='Uploading...';
+    document.getElementById(`uqs-${i}`).className='uq-status uq-ing';
+    try{
+      await uploadSingleFile(file, folderId, i, uploadQueue.length);
+      document.getElementById(`uqs-${i}`).textContent='✅ Done';
+      document.getElementById(`uqs-${i}`).className='uq-status uq-done';
+      totalDone++;
+    }catch(e){
+      document.getElementById(`uqs-${i}`).textContent='❌ Failed';
+      document.getElementById(`uqs-${i}`).className='uq-status uq-err';
+    }
+  }
+
+  document.getElementById('rbox').classList.add('show');
+  btn.disabled=false; btn.textContent='🚀 Upload Files';
+  isUploading=false;
+  uploadQueue=[];
+  document.getElementById('uz-f').textContent='';
+  loadDash();
+}
+
+function genFileId(){
+  return 'cv_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
+
+async function uploadSingleFile(file, folderId, fileIdx, totalFiles){
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const fileId = genFileId();
+
+  for(let i=0; i<totalChunks; i++){
+    const start = i * CHUNK_SIZE;
+    const chunk = file.slice(start, start + CHUNK_SIZE);
+
+    const basePercent = Math.round((fileIdx / totalFiles) * 100);
+    const chunkPercent = Math.round(((i+1) / totalChunks) * (100 / totalFiles));
+    const pct = Math.min(basePercent + chunkPercent, 99);
+
+    document.getElementById('pm').textContent = `${file.name}: chunk ${i+1}/${totalChunks}`;
+    document.getElementById('pp').textContent = pct + '%';
+    document.getElementById('pf').style.width = pct + '%';
+
+    let lastErr = null;
+    for(let retry=0; retry<3; retry++){
+      try{
+        const fd = new FormData();
+        fd.append('fileId', fileId);
+        fd.append('chunkIndex', i);
+        fd.append('totalChunks', totalChunks);
+        fd.append('fileName', file.name);
+        fd.append('folderId', folderId);
+        fd.append('fileSize', file.size);
+        fd.append('chunk', chunk, 'chunk');
+
+        const r = await fetch(`${API}/api/chunk/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: fd
+        });
+        if(!r.ok){ const e=await r.json(); throw new Error(e.error||'Failed'); }
+        const result = await r.json();
+        if(result.error) throw new Error(result.error);
+        lastErr = null;
+        break;
+      }catch(e){
+        lastErr = e;
+        if(retry < 2){
+          document.getElementById('pm').textContent = `Retrying chunk ${i+1}...`;
+          await sleep(3000);
+        }
+      }
+    }
+    if(lastErr) throw lastErr;
+  }
+  return { fileId };
+}
+
+}
+
+// ===== DOWNLOAD =====
+async function startDownload(fileId){
+  const pw = prompt('Enter folder password to download:');
+  if(pw === null) return;
+  await downloadFileDirectly(fileId, pw);
+}
+
+async function downloadFileDirectly(fileId, pw){
+  try{
+    const url = `${API}/api/file/${fileId}?password=${encodeURIComponent(pw)}`;
+    const r = await fetch(url, {headers:{'Authorization':`Bearer ${token}`}});
+    
+    if(r.headers.get('content-type')?.includes('application/json')){
+      const d = await r.json();
+      if(d.error) return alert('Error: '+d.error);
+      if(d.multiPart){
+        // Show multi-part download modal
+        showMultiPartDl(d, pw);
+        return;
+      }
+    }
+    
+    // Single file - trigger download
+    const blob = await r.blob();
+    const { data: fileInfo } = await fetch(`${API}/api/files?folder_id=x`).then(()=>({data:null})).catch(()=>({data:null}));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileId;
+    a.click();
+  }catch(e){ alert('Download error: '+e.message); }
+}
+
+function showMultiPartDl(data, pw){
+  const content = document.getElementById('dl-content');
+  content.innerHTML = `
+    <p style="font-size:.82rem;color:var(--mu2);margin-bottom:1rem">This file has <strong>${data.totalParts} parts</strong>. Download all parts and join them.</p>
+    <div class="dl-parts">
+      ${data.parts.map(p=>`
+        <div class="dlp">
+          <div class="dlp-t">Part ${p.part} — ${fmtSz(p.size)}</div>
+          <a class="dlp-btn" href="${API}${p.downloadUrl}" download="${p.fileName}">⬇️ Download Part ${p.part}</a>
+        </div>
+      `).join('')}
+    </div>
+    <p style="font-size:.75rem;color:var(--mu);margin-top:.8rem">After downloading all parts, join them using a file joiner tool.</p>
+  `;
+  document.getElementById('mod-dl').classList.add('show');
+}
+
+// ===== SELECTION =====
+function toggleSel(id, cb){
+  if(cb.checked) selFiles.add(id);
+  else selFiles.delete(id);
+  updateSelBar();
+}
+
+function selectAll(){
+  allFiles.forEach(f=>{
+    selFiles.add(f.id);
+    const cb = document.querySelector(`.fr[data-id="${f.id}"] .chk`);
+    if(cb) cb.checked=true;
+  });
+  updateSelBar();
+}
+
+function clearSelection(){
+  selFiles.clear();
+  document.querySelectorAll('.chk').forEach(c=>c.checked=false);
+  updateSelBar();
+}
+
+function updateSelBar(){
+  const bar=document.getElementById('sel-bar');
+  if(selFiles.size>0){
+    bar.classList.add('show');
+    document.getElementById('sel-count').textContent=`${selFiles.size} selected`;
+  } else bar.classList.remove('show');
+}
+
+async function downloadSelected(){
+  const pw = prompt('Enter folder password to download selected files:');
+  if(!pw) return;
+  for(const id of selFiles){ await downloadFileDirectly(id, pw); await sleep(300); }
+  clearSelection();
+}
+
+async function deleteSelected(){
+  if(!confirm(`Delete ${selFiles.size} file(s)? Cannot be undone.`)) return;
+  for(const id of selFiles){
+    try{ await aDel(`/api/files/${id}`); }catch{}
+  }
+  clearSelection(); loadDrive();
+}
+
+async function deleteFile(id){
+  if(!confirm('Delete this file?')) return;
+  try{ await aDel(`/api/files/${id}`); loadDrive(); }
+  catch(e){ alert('Error: '+e.message); }
+}
+
+// ===== PAYMENT =====
+function selPlan(el,tb,price){
+  document.querySelectorAll('.po').forEach(x=>x.classList.remove('sel'));
+  el.classList.add('sel');
+  plan={tb,price};
+  document.getElementById('pay-am').textContent=`৳${price}`;
+}
+
+async function submitPayment(){
+  const ng=v('pay-ng'), tx=v('pay-tx');
+  if(!ng||!tx) return sa('pay-al','Fill all fields','e');
+  try{
+    const d=await ap('/api/payment',{nagadNumber:ng,transactionId:tx,amount:plan.price,storageTb:plan.tb,months:6});
+    sa('pay-al','✅ '+d.message,'s');
+    document.getElementById('pay-tx').value='';
+  }catch(e){sa('pay-al',e.message,'e');}
+}
+
+// ===== PROFILE =====
+async function loadProfile(){
+  try{
+    const d=await ag('/api/me');
+    const u=d.user;
+    document.getElementById('pf-nm').textContent=u.name;
+    document.getElementById('pf-em').textContent=u.email;
+    document.getElementById('pf-plan').textContent=u.plan||'Free';
+    document.getElementById('pf-exp').textContent=u.plan_expires_at?new Date(u.plan_expires_at).toLocaleDateString():'Never';
+    document.getElementById('pf-st').textContent=fmtSz(u.storage_used||0);
+    document.getElementById('pf-si').textContent=new Date(u.created_at).toLocaleDateString();
+  }catch{}
+}
+
+// ===== API =====
+async function post(path,body){
+  const r=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json(); if(!r.ok) throw new Error(d.error||'Error'); return d;
+}
+async function ag(path){
+  const r=await fetch(API+path,{headers:{'Authorization':`Bearer ${token}`}});
+  const d=await r.json(); if(!r.ok) throw new Error(d.error||'Error'); return d;
+}
+async function ap(path,body,method='POST'){
+  const r=await fetch(API+path,{method,headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json(); if(!r.ok) throw new Error(d.error||'Error'); return d;
+}
+async function aDel(path){
+  const r=await fetch(API+path,{method:'DELETE',headers:{'Authorization':`Bearer ${token}`}});
+  const d=await r.json(); if(!r.ok) throw new Error(d.error||'Error'); return d;
+}
+
+// ===== UTILS =====
+function v(id){return document.getElementById(id)?.value?.trim()||'';}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtSz(b){
+  if(!b) return '0 B';
+  if(b<1024) return b+' B';
+  if(b<1048576) return(b/1024).toFixed(1)+' KB';
+  if(b<1073741824) return(b/1048576).toFixed(1)+' MB';
+  if(b<1099511627776) return(b/1073741824).toFixed(2)+' GB';
+  return(b/1099511627776).toFixed(2)+' TB';
+}
+function fIcon(n){
+  const e=(n||'').split('.').pop().toLowerCase();
+  const m={pdf:'📄',zip:'🗜️',rar:'🗜️','7z':'🗜️',mp4:'🎬',mkv:'🎬',avi:'🎬',mov:'🎬',mp3:'🎵',wav:'🎵',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',gif:'🖼️',webp:'🖼️',doc:'📝',docx:'📝',ppt:'📊',pptx:'📊',xls:'📊',xlsx:'📊',exe:'⚙️',apk:'📱',iso:'💿',txt:'📄',csv:'📊'};
+  return m[e]||'📁';
+}
+function sa(id,msg,type){
+  const el=document.getElementById(id); if(!el) return;
+  el.textContent=msg;
+  el.className=`alert al-${type} show`;
+  setTimeout(()=>el.className='alert',5000);
+}
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// Drag & drop
+const uz=document.getElementById('uz');
+if(uz){
+  uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('drag');});
+  uz.addEventListener('dragleave',()=>uz.classList.remove('drag'));
+  uz.addEventListener('drop',e=>{
+    e.preventDefault();uz.classList.remove('drag');
+    if(e.dataTransfer.files.length){
+      document.getElementById('fi').files=e.dataTransfer.files;
+      filesSelected(document.getElementById('fi'));
+    }
+  });
+}
+
+// Close modals on outside click
+['mod-folder','mod-rename','mod-dl'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',function(e){
+    if(e.target===this) closeModal(id);
+  });
+});
+</script>
+</body>
+</html>
