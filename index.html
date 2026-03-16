@@ -526,7 +526,7 @@ label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bott
 
 <script>
 const API = 'https://cloudvault-e5wb.onrender.com';
-const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB per chunk - server assembles into 1.8GB ZIP
+const CHUNK_SIZE = 15 * 1024 * 1024; // 15MB chunks - server streams directly to Telegram
 
 let user = null, token = null;
 let curFolderId = null, curFolderName = null;
@@ -579,21 +579,58 @@ async function loadConfig(){
   try{
     const d = await fetch(API + '/api/config').then(r=>r.json());
     siteConfig = d;
-    // Update notice
-    if(d.notice){
-      let nb = document.getElementById('notice-bar');
+
+    // Notice bar
+    let nb = document.getElementById('notice-bar');
+    if(d.notice && d.notice.trim()){
       if(!nb){
         nb = document.createElement('div');
         nb.id = 'notice-bar';
-        nb.style.cssText = 'background:rgba(245,158,11,.12);border-bottom:1px solid rgba(245,158,11,.3);color:#f59e0b;text-align:center;padding:.55rem 1rem;font-size:.835rem;font-weight:600;position:fixed;top:58px;left:0;right:0;z-index:299';
+        nb.style.cssText = 'background:rgba(245,158,11,.12);border-bottom:1px solid rgba(245,158,11,.3);color:#f59e0b;text-align:center;padding:.6rem 1rem;font-size:.835rem;font-weight:600;position:fixed;top:58px;left:0;right:0;z-index:299';
         document.body.insertBefore(nb, document.body.firstChild);
       }
       nb.textContent = d.notice;
+    } else if(nb) nb.remove();
+
+    // Logo
+    const logoBox = document.querySelector('.logo-box');
+    if(d.logoBase64 && logoBox){
+      logoBox.innerHTML = `<img src="data:${d.logoMime||'image/png'};base64,${d.logoBase64}" style="width:22px;height:22px;object-fit:contain">`;
     }
-    // Update pricing text
-    if(d.pricePerTb) document.querySelectorAll('.price-per-tb').forEach(el=>el.textContent='৳'+d.pricePerTb);
-    if(d.freeStorageGb) document.querySelectorAll('.free-storage-gb').forEach(el=>el.textContent=d.freeStorageGb+'GB');
-    if(d.nagadNumber) document.getElementById('ngd-num') && (document.getElementById('ngd-num').textContent = d.nagadNumber);
+
+    // Site name
+    if(d.siteName){
+      const logoSpan = document.querySelector('.logo span');
+      if(logoSpan) logoSpan.textContent = d.siteName;
+      document.title = d.siteName + ' — Free Unlimited Storage';
+    }
+
+    // Hero text
+    if(d.heroH1 || d.heroH2){
+      const h1 = document.querySelector('.hero h1');
+      if(h1 && d.heroH1) h1.innerHTML = d.heroH1 + (d.heroH2 ? `<br><em>${d.heroH2}</em>` : '');
+    }
+    if(d.heroSub){
+      const sub = document.querySelector('.hero p');
+      if(sub) sub.textContent = d.heroSub;
+    }
+
+    // Pricing
+    if(d.pricePerTb){
+      document.querySelectorAll('.price-per-tb').forEach(el=>el.textContent='৳'+d.pricePerTb);
+      // Update pricing cards
+      const payAm = document.getElementById('pay-am');
+      if(payAm) payAm.textContent = '৳' + (plan.tb * d.pricePerTb);
+    }
+    if(d.freeStorageGb){
+      // Update storage limit for new free users shown in sidebar
+      const stt = document.getElementById('stt');
+    }
+
+    // Nagad number
+    const ngd = document.getElementById('ngd-num');
+    if(ngd && d.nagadNumber) ngd.textContent = d.nagadNumber;
+
   }catch(e){ console.log('Config load error:', e.message); }
 }
 

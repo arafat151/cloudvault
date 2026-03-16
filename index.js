@@ -6,7 +6,6 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
-const { execSync, spawnSync } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -29,18 +28,13 @@ const BOTS = [
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Multer — 60MB max per chunk
+// 20MB max per chunk request
 const upload = multer({
-  dest: '/tmp/cv_uploads/',
-  limits: { fileSize: 60 * 1024 * 1024 }
+  dest: '/tmp/cv_up/',
+  limits: { fileSize: 20 * 1024 * 1024 }
 });
 
-const TG_MAX = 1800 * 1024 * 1024; // 1.8GB max per Telegram file
-
-['cv_uploads','cv_assembly','cv_zips'].forEach(d => {
-  const p = `/tmp/${d}/`;
-  if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
-});
+if (!fs.existsSync('/tmp/cv_up/')) fs.mkdirSync('/tmp/cv_up/', { recursive: true });
 
 const auth = (req, res, next) => {
   const t = req.headers.authorization?.replace('Bearer ', '');
@@ -54,36 +48,27 @@ function genPassword(len = 14) {
   return Array.from({ length: len }, () => c[Math.floor(Math.random() * c.length)]).join('');
 }
 
-// Create password-protected ZIP
-function makeZip(inputFilePath, fileName, zipPassword, zipPath) {
-  const dir = path.dirname(zipPath);
-  const base = path.basename(zipPath);
-  // Copy file with correct name for zip
-  const namedPath = path.join(dir, fileName);
-  fs.copyFileSync(inputFilePath, namedPath);
-  try {
-    spawnSync('zip', ['-P', zipPassword, base, fileName], { cwd: dir, timeout: 300000 });
-  } finally {
-    try { fs.unlinkSync(namedPath); } catch {}
-  }
-  return fs.existsSync(zipPath);
-}
-
-async function sendToTelegram(botToken, channelId, filePath, zipName) {
+// Upload chunk buffer directly to Telegram (no ZIP, no disk assembly)
+async function sendChunkToTelegram(botToken, channelId, buffer, fileName) {
   const form = new FormData();
   form.append('chat_id', channelId);
-  form.append('document', fs.createReadStream(filePath), { filename: zipName });
+  // Obscured name in Telegram
+  const tgName = `cv_${Date.now()}_${Math.random().toString(36).slice(2,7)}.dat`;
+  form.append('document', buffer, { filename: tgName, knownLength: buffer.length });
   const res = await axios.post(
     `https://api.telegram.org/bot${botToken}/sendDocument`,
     form,
-    { headers: form.getHeaders(), maxBodyLength: Infinity, maxContentLength: Infinity, timeout: 600000 }
+    { headers: form.getHeaders(), maxBodyLength: Infinity, maxContentLength: Infinity, timeout: 180000 }
   );
   if (res.data.ok) return { fileId: res.data.result.document.file_id, msgId: res.data.result.message_id };
-  throw new Error('Telegram upload failed: ' + JSON.stringify(res.data));
+  throw new Error('Telegram upload failed');
 }
 
 async function getTgFileUrl(botToken, fileId) {
-  const res = await axios.get(`https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`, { timeout: 15000 });
+  const res = await axios.get(
+    `https://api.telegram.org/bot${botToken}/getFile?file_id=${fileId}`,
+    { timeout: 15000 }
+  );
   if (res.data.ok) return `https://api.telegram.org/file/bot${botToken}/${res.data.result.file_path}`;
   return null;
 }
@@ -128,135 +113,108 @@ app.get('/api/me', auth, async (req, res) => {
 });
 
 // ========== CHUNK UPLOAD ==========
-// Flow:
-// 1. Browser sends 50MB chunks
-// 2. Server appends each chunk to assembly file (/tmp/cv_assembly/fileId)
-// 3. When all chunks received → ZIP the whole file with folder password → upload to Telegram → delete tmp
+// Each 15MB chunk: receive → upload to Telegram → delete from disk
+// No disk assembly needed! Works within Render free tier limits
 app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => {
-  let chunkPath = req.file?.path;
+  let filePath = req.file?.path;
   try {
-    const { fileId, chunkIndex, totalChunks, fileName, folderId, fileSize, folderPassword } = req.body;
+    const { fileId, chunkIndex, totalChunks, fileName, folderId, fileSize } = req.body;
     if (!fileId || !req.file) return res.status(400).json({ error: 'Missing data' });
 
     const idx = parseInt(chunkIndex);
     const total = parseInt(totalChunks);
-    const assemblyPath = `/tmp/cv_assembly/${fileId}`;
 
-    // Append chunk to assembly file
-    const chunkData = fs.readFileSync(chunkPath);
-    fs.unlinkSync(chunkPath); chunkPath = null;
-    fs.appendFileSync(assemblyPath, chunkData);
+    // Read chunk (15MB max) and immediately delete from disk
+    const chunkBuffer = fs.readFileSync(filePath);
+    fs.unlinkSync(filePath); filePath = null;
 
-    // Not last chunk — done for now
-    if (idx < total - 1) {
-      return res.json({ done: false, chunkIndex: idx, received: idx + 1, total });
-    }
+    // Upload to both Telegram bots simultaneously
+    const [tg1, tg2] = await Promise.allSettled([
+      sendChunkToTelegram(BOTS[0].token, BOTS[0].channel, chunkBuffer, fileName),
+      sendChunkToTelegram(BOTS[1].token, BOTS[1].channel, chunkBuffer, fileName),
+    ]);
 
-    // ===== LAST CHUNK — process the complete file =====
-    console.log(`All chunks received for ${fileName} (${fileId}), creating ZIP...`);
+    const tgResults = [
+      tg1.status === 'fulfilled' ? { botIndex: 0, ...tg1.value } : null,
+      tg2.status === 'fulfilled' ? { botIndex: 1, ...tg2.value } : null,
+    ].filter(Boolean);
 
-    const assembledSize = fs.statSync(assemblyPath).size;
-    const zipPw = folderPassword || 'cv_secure_2024';
+    if (!tgResults.length) throw new Error('All Telegram uploads failed');
 
-    // Check if file already exists
-    const { data: existingFile } = await supabase.from('files').select('id').eq('id', fileId).single();
-    if (existingFile) {
-      try { fs.unlinkSync(assemblyPath); } catch {}
+    const chunkMeta = {
+      chunk_index: idx,
+      tg_results: tgResults,
+      chunk_size: chunkBuffer.length,
+      chunk_name: `chunk_${idx}_${fileName}`
+    };
+
+    // Last chunk — save file record
+    if (idx === total - 1) {
+      // Get all previous chunks
+      const { data: prevChunks } = await supabase
+        .from('file_chunks_temp')
+        .select('*')
+        .eq('file_id', fileId)
+        .order('chunk_index');
+
+      const allChunks = [...(prevChunks || []), chunkMeta];
+      allChunks.sort((a, b) => a.chunk_index - b.chunk_index);
+
+      // Check folder ownership
+      const { data: folder } = await supabase.from('folders')
+        .select('id').eq('id', folderId).eq('user_id', req.user.userId).single();
+      if (!folder) throw new Error('Folder not found');
+
+      // Check duplicate
+      const { data: existingFile } = await supabase.from('files').select('id').eq('id', fileId).single();
+      if (!existingFile) {
+        const { error: dbErr } = await supabase.from('files').insert({
+          id: fileId,
+          user_id: req.user.userId,
+          folder_id: folderId,
+          original_name: fileName,
+          size: parseInt(fileSize) || 0,
+          total_chunks: total,
+          chunks: JSON.stringify(allChunks.map(c => ({
+            index: c.chunk_index,
+            fileName: c.chunk_name,
+            size: c.chunk_size,
+            telegram: c.tg_results,
+          }))),
+          download_count: 0,
+          created_at: new Date().toISOString()
+        });
+        if (dbErr) throw dbErr;
+
+        try { await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: parseInt(fileSize) || 0 }); } catch {}
+      }
+
+      // Clean temp
+      try { await supabase.from('file_chunks_temp').delete().eq('file_id', fileId); } catch {}
       return res.json({ done: true, fileId, chunkIndex: idx });
     }
 
-    // Verify folder
-    const { data: folder } = await supabase.from('folders').select('id').eq('id', folderId).eq('user_id', req.user.userId).single();
-    if (!folder) { try { fs.unlinkSync(assemblyPath); } catch {} throw new Error('Folder not found'); }
-
-    // Split assembled file into 1.8GB Telegram parts if needed
-    const numParts = Math.ceil(assembledSize / TG_MAX);
-    const telegramParts = [];
-
-    for (let p = 0; p < numParts; p++) {
-      const partStart = p * TG_MAX;
-      const partEnd = Math.min(partStart + TG_MAX, assembledSize);
-      const partSize = partEnd - partStart;
-
-      // Extract this part
-      const partPath = `/tmp/cv_assembly/${fileId}_part${p}`;
-      const fd = fs.openSync(assemblyPath, 'r');
-      const buf = Buffer.allocUnsafe(partSize);
-      fs.readSync(fd, buf, 0, partSize, partStart);
-      fs.closeSync(fd);
-      fs.writeFileSync(partPath, buf);
-
-      // Create ZIP with password
-      const innerName = numParts > 1 ? `${fileName}.part${p+1}of${numParts}` : fileName;
-      const zipName = numParts > 1
-        ? `cv_${String(p+1).padStart(3,'0')}of${String(numParts).padStart(3,'0')}_${fileId.slice(-6)}.zip`
-        : `cv_${fileId.slice(-6)}.zip`;
-      const zipPath = `/tmp/cv_zips/${fileId}_p${p}.zip`;
-
-      makeZip(partPath, innerName, zipPw, zipPath);
-      try { fs.unlinkSync(partPath); } catch {}
-
-      if (!fs.existsSync(zipPath)) throw new Error(`ZIP creation failed for part ${p+1}`);
-
-      console.log(`Uploading part ${p+1}/${numParts} to Telegram...`);
-
-      // Upload to both Telegram bots
-      const [tg1, tg2] = await Promise.allSettled([
-        sendToTelegram(BOTS[0].token, BOTS[0].channel, zipPath, zipName),
-        sendToTelegram(BOTS[1].token, BOTS[1].channel, zipPath, zipName),
-      ]);
-      try { fs.unlinkSync(zipPath); } catch {}
-
-      const tgResults = [
-        tg1.status === 'fulfilled' ? { botIndex: 0, ...tg1.value } : null,
-        tg2.status === 'fulfilled' ? { botIndex: 1, ...tg2.value } : null,
-      ].filter(Boolean);
-
-      if (!tgResults.length) throw new Error(`Telegram upload failed for part ${p+1}`);
-
-      telegramParts.push({
-        index: p,
-        fileName: innerName,
-        zipName,
-        size: partSize,
-        telegram: tgResults,
-      });
-    }
-
-    // Cleanup assembly file
-    try { fs.unlinkSync(assemblyPath); } catch {}
-
-    // Save to database
-    const { error: dbErr } = await supabase.from('files').insert({
-      id: fileId,
+    // Save chunk to temp table
+    await supabase.from('file_chunks_temp').insert({
+      file_id: fileId,
+      chunk_index: idx,
+      tg_results: tgResults,
+      chunk_name: chunkMeta.chunk_name,
+      chunk_size: chunkMeta.chunk_size,
       user_id: req.user.userId,
-      folder_id: folderId,
-      original_name: fileName,
-      size: parseInt(fileSize) || assembledSize,
-      total_chunks: numParts,
-      chunks: JSON.stringify(telegramParts),
-      download_count: 0,
       created_at: new Date().toISOString()
     });
-    if (dbErr) throw dbErr;
 
-    // Update storage
-    try { await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: parseInt(fileSize) || assembledSize }); } catch {}
-
-    console.log(`File ${fileName} uploaded successfully (${numParts} Telegram part(s))`);
-    res.json({ done: true, fileId, parts: numParts });
-
+    res.json({ done: false, chunkIndex: idx, received: idx + 1, total });
   } catch (e) {
-    if (chunkPath) try { fs.unlinkSync(chunkPath); } catch {}
-    // Clean up assembly file on error
-    const assemblyPath = `/tmp/cv_assembly/${req.body?.fileId}`;
-    if (req.body?.fileId && fs.existsSync(assemblyPath)) try { fs.unlinkSync(assemblyPath); } catch {}
+    if (filePath) try { fs.unlinkSync(filePath); } catch {}
     console.error('Upload error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
 // ========== DOWNLOAD ==========
+// Streams chunks from Telegram and reassembles them for the user
 app.get('/api/file/:fileId', auth, async (req, res) => {
   try {
     const { password } = req.query;
@@ -270,77 +228,38 @@ app.get('/api/file/:fileId', auth, async (req, res) => {
       if (!valid) return res.status(403).json({ error: 'Wrong password' });
     }
 
-    const parts = JSON.parse(file.chunks || '[]');
+    const chunks = JSON.parse(file.chunks || '[]');
+    
+    // Set download headers
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+    if (file.size) res.setHeader('Content-Length', file.size);
 
-    if (parts.length === 1) {
-      const part = parts[0];
-      const tg = part.telegram?.[0];
-      if (tg) {
-        const botToken = BOTS[tg.botIndex]?.token;
-        const url = await getTgFileUrl(botToken, tg.fileId);
-        if (url) {
-          const zipName = part.zipName || `${file.original_name}.zip`;
-          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipName)}"`);
-          res.setHeader('Content-Type', 'application/zip');
-          const stream = await axios.get(url, { responseType: 'stream', timeout: 600000 });
-          res.on('close', () => stream.data.destroy());
-          stream.data.on('error', () => {});
-          stream.data.pipe(res);
-          try { await supabase.from('files').update({ download_count: (file.download_count||0)+1 }).eq('id', req.params.fileId); } catch {}
-          return;
-        }
-      }
-    }
-
-    // Multi-part
-    res.json({
-      multiPart: true,
-      totalParts: parts.length,
-      fileName: file.original_name,
-      totalSize: file.size,
-      parts: parts.map((p, i) => ({
-        part: i + 1,
-        zipName: p.zipName || `part${i+1}.zip`,
-        size: p.size,
-        downloadUrl: `/api/file/${req.params.fileId}/part/${i}?password=${encodeURIComponent(password || '')}`
-      }))
-    });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/file/:fileId/part/:partIdx', auth, async (req, res) => {
-  try {
-    const { password } = req.query;
-    const { data: file } = await supabase.from('files').select('*').eq('id', req.params.fileId).single();
-    if (!file) return res.status(404).json({ error: 'File not found' });
-
-    const { data: folder } = await supabase.from('folders').select('password_hash').eq('id', file.folder_id).single();
-    if (folder?.password_hash && password) {
-      const valid = await bcrypt.compare(password, folder.password_hash);
-      if (!valid) return res.status(403).json({ error: 'Wrong password' });
-    }
-
-    const parts = JSON.parse(file.chunks || '[]');
-    const part = parts[parseInt(req.params.partIdx)];
-    if (!part) return res.status(404).json({ error: 'Part not found' });
-
-    const tg = part.telegram?.[0];
-    if (tg) {
+    // Stream all chunks in order
+    for (const chunk of chunks) {
+      const tg = chunk.telegram?.[0];
+      if (!tg) throw new Error('No telegram data for chunk ' + chunk.index);
       const botToken = BOTS[tg.botIndex]?.token;
       const url = await getTgFileUrl(botToken, tg.fileId);
-      if (url) {
-        const zipName = part.zipName || `part${req.params.partIdx}.zip`;
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipName)}"`);
-        res.setHeader('Content-Type', 'application/zip');
-        const stream = await axios.get(url, { responseType: 'stream', timeout: 600000 });
-        res.on('close', () => stream.data.destroy());
-        stream.data.on('error', () => {});
-        stream.data.pipe(res);
-        return;
-      }
+      if (!url) throw new Error('Could not get Telegram URL for chunk ' + chunk.index);
+      
+      await new Promise((resolve, reject) => {
+        axios.get(url, { responseType: 'stream', timeout: 300000 })
+          .then(stream => {
+            stream.data.on('end', resolve);
+            stream.data.on('error', reject);
+            stream.data.pipe(res, { end: false });
+          })
+          .catch(reject);
+      });
     }
-    res.status(500).json({ error: 'No source available' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+
+    res.end();
+    try { await supabase.from('files').update({ download_count: (file.download_count||0)+1 }).eq('id', req.params.fileId); } catch {}
+  } catch (e) {
+    if (!res.headersSent) res.status(500).json({ error: e.message });
+    else res.end();
+  }
 });
 
 // ========== FOLDERS ==========
@@ -486,7 +405,7 @@ app.get('/api/admin/users', async (req, res) => {
 
 app.get('/api/admin/user/:userId/folders', async (req, res) => {
   if (req.query.key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
-  const { data } = await supabase.from('folders').select('id,name,created_at').eq('user_id', req.params.userId).order('created_at');
+  const { data } = await supabase.from('folders').select('id,name,created_at').eq('user_id', req.params.userId);
   res.json({ folders: data||[] });
 });
 
@@ -508,6 +427,17 @@ app.post('/api/admin/config', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Upload logo image to Supabase (base64)
+app.post('/api/admin/logo', async (req, res) => {
+  if (req.body.key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
+  try {
+    const { imageBase64, mimeType } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: 'No image data' });
+    await supabase.from('site_config').upsert({ id: 1, logo_base64: imageBase64, logo_mime: mimeType||'image/png', updated_at: new Date().toISOString() });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/config', async (req, res) => {
   try {
     const { data } = await supabase.from('site_config').select('*').eq('id', 1).single();
@@ -515,6 +445,8 @@ app.get('/api/config', async (req, res) => {
       nagadNumber: NAGAD_NUMBER,
       siteName: data?.site_name||'CloudVault',
       logoEmoji: data?.logo_emoji||'☁️',
+      logoBase64: data?.logo_base64||null,
+      logoMime: data?.logo_mime||null,
       notice: data?.notice||null,
       freeStorageGb: data?.free_storage_gb||100,
       pricePerTb: data?.price_per_tb||5,
@@ -527,10 +459,10 @@ app.get('/api/config', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => res.json({ status: 'CloudVault API v6 ✅' }));
+app.get('/', (req, res) => res.json({ status: 'CloudVault API v7 ✅' }));
 
 const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, () => console.log(`CloudVault API v6 on port ${PORT}`));
-server.setTimeout(1800000); // 30 min for large file assembly
-server.keepAliveTimeout = 1810000;
-server.headersTimeout = 1820000;
+const server = app.listen(PORT, () => console.log(`CloudVault API v7 on port ${PORT}`));
+server.setTimeout(600000);
+server.keepAliveTimeout = 610000;
+server.headersTimeout = 620000;
