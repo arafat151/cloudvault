@@ -541,6 +541,8 @@ let plan = { tb: 1, price: 5 };
 let uploadQueue = [];
 let isUploading = false;
 let activeCtxMenu = null;
+let currentFolderPassword = '';
+let siteConfig = {};
 
 // ===== INIT =====
 (function(){
@@ -548,6 +550,7 @@ let activeCtxMenu = null;
   const s = localStorage.getItem('cv_user');
   if (token && s) user = JSON.parse(s);
   updateNav();
+  loadConfig();
   // close ctx menus on click
   document.addEventListener('click', e => {
     if (activeCtxMenu && !activeCtxMenu.contains(e.target)) {
@@ -569,6 +572,29 @@ function updateNav(){
   const n = document.getElementById('nav-r');
   if(user) n.innerHTML = `<span style="font-size:.82rem;color:var(--mu2)">Hi, ${user.name?.split(' ')[0]}</span><button class="btn btn-primary btn-sm" onclick="showPage('dash')">Dashboard</button>`;
   else n.innerHTML = `<button class="btn btn-ghost" onclick="showPage('login')">Login</button><button class="btn btn-primary" onclick="showPage('register')">Get Started Free</button>`;
+}
+
+// ===== CONFIG =====
+async function loadConfig(){
+  try{
+    const d = await fetch(API + '/api/config').then(r=>r.json());
+    siteConfig = d;
+    // Update notice
+    if(d.notice){
+      let nb = document.getElementById('notice-bar');
+      if(!nb){
+        nb = document.createElement('div');
+        nb.id = 'notice-bar';
+        nb.style.cssText = 'background:rgba(245,158,11,.12);border-bottom:1px solid rgba(245,158,11,.3);color:#f59e0b;text-align:center;padding:.55rem 1rem;font-size:.835rem;font-weight:600;position:fixed;top:58px;left:0;right:0;z-index:299';
+        document.body.insertBefore(nb, document.body.firstChild);
+      }
+      nb.textContent = d.notice;
+    }
+    // Update pricing text
+    if(d.pricePerTb) document.querySelectorAll('.price-per-tb').forEach(el=>el.textContent='৳'+d.pricePerTb);
+    if(d.freeStorageGb) document.querySelectorAll('.free-storage-gb').forEach(el=>el.textContent=d.freeStorageGb+'GB');
+    if(d.nagadNumber) document.getElementById('ngd-num') && (document.getElementById('ngd-num').textContent = d.nagadNumber);
+  }catch(e){ console.log('Config load error:', e.message); }
 }
 
 // ===== AUTH =====
@@ -752,7 +778,7 @@ async function verifyLock(){
   btn.disabled=true; btn.textContent='⏳';
   try{
     const d=await ap(`/api/folders/${pendingFolderId}/verify`,{password:pw});
-    if(d.valid){ unlocked.add(pendingFolderId); const n=pendingFolderName; closeLock(); navFolder(pendingFolderId,n); }
+    if(d.valid){ unlocked.add(pendingFolderId); currentFolderPassword=v('lock-pw'); const n=pendingFolderName; closeLock(); navFolder(pendingFolderId,n); }
     else sa('lock-al','Wrong password!','e');
   }catch(e){sa('lock-al',e.message,'e');}
   finally{btn.disabled=false; btn.textContent='🔓 Unlock';}
@@ -945,6 +971,8 @@ function genFileId(){
 async function uploadSingleFile(file, folderId, fileIdx, totalFiles){
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
   const fileId = genFileId();
+  // Get the folder password that was used to unlock this folder
+  const folderPw = currentFolderPassword || '';
 
   for(let i=0; i<totalChunks; i++){
     const start = i * CHUNK_SIZE;
@@ -968,6 +996,7 @@ async function uploadSingleFile(file, folderId, fileIdx, totalFiles){
         fd.append('fileName', file.name);
         fd.append('folderId', folderId);
         fd.append('fileSize', file.size);
+        fd.append('folderPassword', folderPw);
         fd.append('chunk', chunk, 'chunk');
 
         const r = await fetch(`${API}/api/chunk/upload`, {
@@ -1026,18 +1055,21 @@ async function downloadFileDirectly(fileId, pw){
 }
 
 function showMultiPartDl(data, pw){
-  const content = document.getElementById('dl-content');
-  content.innerHTML = `
-    <p style="font-size:.82rem;color:var(--mu2);margin-bottom:1rem">This file has <strong>${data.totalParts} parts</strong>. Download all parts and join them.</p>
+  const dlContent = document.getElementById('dl-content');
+  dlContent.innerHTML = `
+    <p style="font-size:.82rem;color:var(--mu2);margin-bottom:.5rem">This file has <strong>${data.totalParts} ZIP parts</strong>.</p>
+    <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:9px;padding:.8rem;font-size:.78rem;color:var(--p);margin-bottom:1rem">
+      🔐 Each ZIP is password-protected. Use your <strong>folder password</strong> to extract.
+    </div>
     <div class="dl-parts">
       ${data.parts.map(p=>`
         <div class="dlp">
-          <div class="dlp-t">Part ${p.part} — ${fmtSz(p.size)}</div>
-          <a class="dlp-btn" href="${API}${p.downloadUrl}" download="${p.fileName}">⬇️ Download Part ${p.part}</a>
+          <div class="dlp-t">${p.zipName||'Part '+p.part} — ${fmtSz(p.size)}</div>
+          <a class="dlp-btn" href="${API}${p.downloadUrl}&token=${token}" download="${p.zipName||'part'+p.part+'.zip'}">⬇️ Download Part ${p.part}</a>
         </div>
       `).join('')}
     </div>
-    <p style="font-size:.75rem;color:var(--mu);margin-top:.8rem">After downloading all parts, join them using a file joiner tool.</p>
+    <p style="font-size:.75rem;color:var(--mu);margin-top:.8rem">Extract each part with your folder password to get the original files.</p>
   `;
   document.getElementById('mod-dl').classList.add('show');
 }

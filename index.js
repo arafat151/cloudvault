@@ -5,6 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -27,12 +29,15 @@ const BOTS = [
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Multer — chunks saved to /tmp/cv_uploads/
 const upload = multer({
-  dest: '/tmp/cv_chunks/',
+  dest: '/tmp/cv_uploads/',
   limits: { fileSize: 20 * 1024 * 1024 }
 });
 
-if (!fs.existsSync('/tmp/cv_chunks/')) fs.mkdirSync('/tmp/cv_chunks/', { recursive: true });
+['/tmp/cv_uploads/', '/tmp/cv_zips/'].forEach(d => {
+  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+});
 
 const auth = (req, res, next) => {
   const t = req.headers.authorization?.replace('Bearer ', '');
@@ -42,17 +47,32 @@ const auth = (req, res, next) => {
 };
 
 function genPassword(len = 14) {
-  const c = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
+  const c = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   return Array.from({ length: len }, () => c[Math.floor(Math.random() * c.length)]).join('');
 }
 
-async function sendChunkToTelegram(botToken, channelId, fileBuffer, fileName) {
+// Create password-protected ZIP from a buffer
+function makeZip(fileBuffer, fileName, zipPassword) {
+  const tmpDir = `/tmp/cv_zips/${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const inputFile = path.join(tmpDir, fileName);
+  const zipFile = path.join(tmpDir, 'archive.zip');
+  try {
+    fs.writeFileSync(inputFile, fileBuffer);
+    // Create password-protected zip
+    execSync(`cd "${tmpDir}" && zip -P "${zipPassword}" archive.zip "${fileName}"`, { timeout: 120000 });
+    const zipBuffer = fs.readFileSync(zipFile);
+    return zipBuffer;
+  } finally {
+    // Cleanup
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+  }
+}
+
+async function sendToTelegram(botToken, channelId, fileBuffer, zipFileName) {
   const form = new FormData();
   form.append('chat_id', channelId);
-  // Obscure filename in Telegram - nobody can tell what the file is
-  const obscuredName = `data_${Date.now()}_${Math.random().toString(36).slice(2,8)}.bin`;
-  form.append('document', fileBuffer, { filename: obscuredName, knownLength: fileBuffer.length });
-  form.append('disable_content_type_detection', 'true');
+  form.append('document', fileBuffer, { filename: zipFileName, knownLength: fileBuffer.length });
   const res = await axios.post(
     `https://api.telegram.org/bot${botToken}/sendDocument`,
     form,
@@ -68,21 +88,7 @@ async function getTgFileUrl(botToken, fileId) {
   return null;
 }
 
-async function uploadToGoFile(buffer, fileName) {
-  try {
-    const srv = await axios.get('https://api.gofile.io/servers', { timeout: 8000 });
-    const server = srv.data.data.servers[0].name;
-    const form = new FormData();
-    form.append('file', buffer, { filename: fileName });
-    const res = await axios.post(`https://${server}.gofile.io/uploadFile`, form, {
-      headers: form.getHeaders(), maxBodyLength: Infinity, timeout: 120000
-    });
-    if (res.data.status === 'ok') return { fileId: res.data.data.fileId };
-    return null;
-  } catch { return null; }
-}
-
-// AUTH
+// ========== AUTH ==========
 app.post('/api/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
@@ -121,32 +127,39 @@ app.get('/api/me', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// CHUNK UPLOAD
+// ========== CHUNK UPLOAD ==========
+// Flow: Browser sends 15MB chunk → Server saves to /tmp → wraps in password-ZIP → uploads ZIP to Telegram → deletes /tmp
 app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => {
   let filePath = req.file?.path;
+  let zipBuffer = null;
   try {
-    const { fileId, chunkIndex, totalChunks, fileName, folderId, fileSize } = req.body;
+    const { fileId, chunkIndex, totalChunks, fileName, folderId, fileSize, folderPassword } = req.body;
     if (!fileId || !req.file) return res.status(400).json({ error: 'Missing data' });
 
     const idx = parseInt(chunkIndex);
     const total = parseInt(totalChunks);
 
+    // Read chunk from disk
     const chunkBuffer = fs.readFileSync(filePath);
     fs.unlinkSync(filePath); filePath = null;
 
-    const chunkName = total > 1
-      ? `${fileId}_${String(idx + 1).padStart(4, '0')}of${String(total).padStart(4, '0')}_${fileName}`
-      : `${fileId}_${fileName}`;
+    // ZIP name (shown in Telegram)
+    const chunkLabel = total > 1
+      ? `${String(idx + 1).padStart(3, '0')}of${String(total).padStart(3, '0')}`
+      : '001of001';
+    const zipName = `cv_${chunkLabel}_${fileId.slice(-6)}.zip`;
+    const innerName = total > 1 ? `${fileName}.part${idx + 1}` : fileName;
 
+    // Use folder password as ZIP password (so Telegram ZIP is locked)
+    const zipPw = folderPassword || 'cv_default_2024';
+    zipBuffer = makeZip(chunkBuffer, innerName, zipPw);
+
+    // Upload ZIP to both Telegram bots
     const [tg1, tg2] = await Promise.allSettled([
-      sendChunkToTelegram(BOTS[0].token, BOTS[0].channel, chunkBuffer, chunkName),
-      sendChunkToTelegram(BOTS[1].token, BOTS[1].channel, chunkBuffer, chunkName),
+      sendToTelegram(BOTS[0].token, BOTS[0].channel, zipBuffer, zipName),
+      sendToTelegram(BOTS[1].token, BOTS[1].channel, zipBuffer, zipName),
     ]);
-
-    let gf = null;
-    if (idx === total - 1 || total === 1) {
-      gf = await uploadToGoFile(chunkBuffer, chunkName).catch(() => null);
-    }
+    zipBuffer = null;
 
     const tgResults = [
       tg1.status === 'fulfilled' ? { botIndex: 0, ...tg1.value } : null,
@@ -155,27 +168,41 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
 
     if (!tgResults.length) throw new Error('All Telegram uploads failed');
 
+    const chunkMeta = {
+      chunk_index: idx,
+      tg_results: tgResults,
+      chunk_name: innerName,
+      zip_name: zipName,
+      chunk_size: chunkBuffer?.length || req.file.size
+    };
+
     if (idx === total - 1) {
+      // Last chunk — get all previous chunks and save file record
       const { data: prevChunks } = await supabase.from('file_chunks_temp')
         .select('*').eq('file_id', fileId).order('chunk_index');
 
-      const allChunks = [...(prevChunks || []), {
-        chunk_index: idx, tg_results: tgResults,
-        gf_file_id: gf?.fileId || null, chunk_name: chunkName, chunk_size: chunkBuffer.length
-      }];
+      const allChunks = [...(prevChunks || []), chunkMeta];
       allChunks.sort((a, b) => a.chunk_index - b.chunk_index);
 
       const { data: folder } = await supabase.from('folders').select('id').eq('id', folderId).eq('user_id', req.user.userId).single();
       if (!folder) throw new Error('Folder not found');
 
       const { error: dbErr } = await supabase.from('files').insert({
-        id: fileId, user_id: req.user.userId, folder_id: folderId,
-        original_name: fileName, size: parseInt(fileSize) || 0, total_chunks: total,
+        id: fileId,
+        user_id: req.user.userId,
+        folder_id: folderId,
+        original_name: fileName,
+        size: parseInt(fileSize) || 0,
+        total_chunks: total,
         chunks: JSON.stringify(allChunks.map(c => ({
-          index: c.chunk_index, fileName: c.chunk_name, size: c.chunk_size,
-          telegram: c.tg_results, gofile: c.gf_file_id ? { fileId: c.gf_file_id } : null
+          index: c.chunk_index,
+          fileName: c.chunk_name,
+          zipName: c.zip_name,
+          size: c.chunk_size,
+          telegram: c.tg_results,
         }))),
-        download_count: 0, created_at: new Date().toISOString()
+        download_count: 0,
+        created_at: new Date().toISOString()
       });
       if (dbErr) throw dbErr;
 
@@ -186,22 +213,28 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
       return res.json({ done: true, fileId, chunkIndex: idx });
     }
 
+    // Not last chunk — save to temp
     await supabase.from('file_chunks_temp').insert({
-      file_id: fileId, chunk_index: idx, tg_results: tgResults,
-      gf_file_id: gf?.fileId || null, chunk_name: chunkName,
-      chunk_size: chunkBuffer.length, user_id: req.user.userId,
+      file_id: fileId,
+      chunk_index: idx,
+      tg_results: tgResults,
+      chunk_name: innerName,
+      zip_name: zipName,
+      chunk_size: chunkMeta.chunk_size,
+      user_id: req.user.userId,
       created_at: new Date().toISOString()
     });
 
     res.json({ done: false, chunkIndex: idx, received: idx + 1, total });
   } catch (e) {
     if (filePath) try { fs.unlinkSync(filePath); } catch {}
-    console.error('Chunk upload error:', e.message);
+    console.error('Upload error:', e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
-// DOWNLOAD
+// ========== DOWNLOAD ==========
+// Downloads the ZIP directly — user extracts with folder password
 app.get('/api/file/:fileId', auth, async (req, res) => {
   try {
     const { password } = req.query;
@@ -216,6 +249,7 @@ app.get('/api/file/:fileId', auth, async (req, res) => {
     }
 
     const chunks = JSON.parse(file.chunks || '[]');
+
     if (chunks.length === 1) {
       const chunk = chunks[0];
       const tg = chunk.telegram?.[0];
@@ -223,20 +257,22 @@ app.get('/api/file/:fileId', auth, async (req, res) => {
         const botToken = BOTS[tg.botIndex]?.token;
         const url = await getTgFileUrl(botToken, tg.fileId);
         if (url) {
-          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
-          res.setHeader('Content-Type', 'application/octet-stream');
-          if (chunk.size) res.setHeader('Content-Length', chunk.size);
+          // Download the ZIP from Telegram and send to user
+          const zipName = chunk.zipName || `${file.original_name}.zip`;
+          res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipName)}"`);
+          res.setHeader('Content-Type', 'application/zip');
           const stream = await axios.get(url, { responseType: 'stream', timeout: 300000 });
           stream.data.pipe(res);
-          await supabase.from('files').update({ download_count: (file.download_count || 0) + 1 }).eq('id', req.params.fileId);
+          await supabase.from('files').update({ download_count: (file.download_count || 0) + 1 }).eq('id', req.params.fileId).catch(() => {});
           return;
         }
       }
     }
 
+    // Multi-part: show download links for each ZIP part
     const parts = chunks.map((chunk, i) => ({
       part: i + 1,
-      fileName: file.original_name + (chunks.length > 1 ? `.part${i+1}` : ''),
+      zipName: chunk.zipName || `part${i+1}.zip`,
       size: chunk.size,
       downloadUrl: `/api/file/${req.params.fileId}/part/${i}?password=${encodeURIComponent(password || '')}`
     }));
@@ -265,9 +301,9 @@ app.get('/api/file/:fileId/part/:partIdx', auth, async (req, res) => {
       const botToken = BOTS[tg.botIndex]?.token;
       const url = await getTgFileUrl(botToken, tg.fileId);
       if (url) {
-        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(chunk.fileName)}"`);
-        res.setHeader('Content-Type', 'application/octet-stream');
-        if (chunk.size) res.setHeader('Content-Length', chunk.size);
+        const zipName = chunk.zipName || `${file.original_name}.part${parseInt(req.params.partIdx)+1}.zip`;
+        res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipName)}"`);
+        res.setHeader('Content-Type', 'application/zip');
         const stream = await axios.get(url, { responseType: 'stream', timeout: 300000 });
         stream.data.pipe(res);
         return;
@@ -277,7 +313,7 @@ app.get('/api/file/:fileId/part/:partIdx', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// FOLDERS
+// ========== FOLDERS ==========
 app.get('/api/folders', auth, async (req, res) => {
   try {
     let q = supabase.from('folders').select('id,name,parent_id,created_at').eq('user_id', req.user.userId);
@@ -332,7 +368,7 @@ app.post('/api/folders/:id/verify', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// FILES
+// ========== FILES ==========
 app.get('/api/files', auth, async (req, res) => {
   try {
     const { folder_id } = req.query;
@@ -356,7 +392,7 @@ app.delete('/api/files/:id', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// PAYMENT
+// ========== PAYMENT ==========
 app.post('/api/payment', auth, async (req, res) => {
   try {
     const { transactionId, nagadNumber, amount, storageTb, months } = req.body;
@@ -376,7 +412,19 @@ app.post('/api/payment', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ADMIN
+// ========== ADMIN ==========
+app.get('/api/admin/stats', async (req, res) => {
+  if (req.query.key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
+  try {
+    const { count: userCount } = await supabase.from('users').select('*', { count: 'exact', head: true });
+    const { count: fileCount } = await supabase.from('files').select('*', { count: 'exact', head: true });
+    const { count: pendingCount } = await supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+    const { data: revenue } = await supabase.from('payments').select('amount').eq('status', 'approved');
+    const totalRevenue = (revenue || []).reduce((a, p) => a + (p.amount || 0), 0);
+    res.json({ userCount, fileCount, pendingCount, totalRevenue });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/admin/payments', async (req, res) => {
   if (req.query.key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
   const { data } = await supabase.from('payments').select('*').order('created_at', { ascending: false });
@@ -406,36 +454,10 @@ app.get('/api/admin/users', async (req, res) => {
   res.json({ users: data || [] });
 });
 
-app.get('/api/admin/stats', async (req, res) => {
+app.get('/api/admin/user/:userId/folders', async (req, res) => {
   if (req.query.key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
-  const { count: userCount } = await supabase.from('users').select('*', { count: 'exact', head: true });
-  const { count: fileCount } = await supabase.from('files').select('*', { count: 'exact', head: true });
-  const { count: pendingCount } = await supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending');
-  const { data: revenue } = await supabase.from('payments').select('amount').eq('status', 'approved');
-  const totalRevenue = (revenue || []).reduce((a, p) => a + (p.amount || 0), 0);
-  res.json({ userCount, fileCount, pendingCount, totalRevenue });
-});
-
-app.get('/api/config', async (req, res) => {
-  try {
-    const { data } = await supabase.from('site_config').select('*').eq('id', 1).single();
-    res.json({
-      nagadNumber: NAGAD_NUMBER,
-      siteName: data?.site_name || 'CloudVault',
-      notice: data?.notice || null,
-      freeStorageGb: data?.free_storage_gb || 100,
-      pricePerTb: data?.price_per_tb || 5
-    });
-  } catch {
-    res.json({ nagadNumber: NAGAD_NUMBER, siteName: 'CloudVault', notice: null, freeStorageGb: 100, pricePerTb: 5 });
-  }
-});
-
-app.post('/api/admin/config', async (req, res) => {
-  if (req.body.key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
-  const { key, ...config } = req.body;
-  await supabase.from('site_config').upsert({ id: 1, ...config, updated_at: new Date().toISOString() });
-  res.json({ success: true });
+  const { data } = await supabase.from('folders').select('id,name,created_at').eq('user_id', req.params.userId).order('created_at');
+  res.json({ folders: data || [] });
 });
 
 app.get('/api/admin/config', async (req, res) => {
@@ -444,10 +466,38 @@ app.get('/api/admin/config', async (req, res) => {
   res.json({ config: data || {} });
 });
 
-app.get('/', (req, res) => res.json({ status: 'CloudVault API v4 ✅' }));
+app.post('/api/admin/config', async (req, res) => {
+  if (req.body.key !== ADMIN_KEY) return res.status(403).json({ error: 'Unauthorized' });
+  const { key, ...config } = req.body;
+  const { error } = await supabase.from('site_config').upsert({ id: 1, ...config, updated_at: new Date().toISOString() });
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
+});
+
+// ========== PUBLIC CONFIG ==========
+app.get('/api/config', async (req, res) => {
+  try {
+    const { data } = await supabase.from('site_config').select('*').eq('id', 1).single();
+    res.json({
+      nagadNumber: NAGAD_NUMBER,
+      siteName: data?.site_name || 'CloudVault',
+      logoEmoji: data?.logo_emoji || '☁️',
+      notice: data?.notice || null,
+      freeStorageGb: data?.free_storage_gb || 100,
+      pricePerTb: data?.price_per_tb || 5,
+      heroH1: data?.hero_h1 || 'Your Files.',
+      heroH2: data?.hero_h2 || 'Safe Forever.',
+      heroSub: data?.hero_sub || null,
+    });
+  } catch {
+    res.json({ nagadNumber: NAGAD_NUMBER, siteName: 'CloudVault', logoEmoji: '☁️', notice: null, freeStorageGb: 100, pricePerTb: 5 });
+  }
+});
+
+app.get('/', (req, res) => res.json({ status: 'CloudVault API v5 ✅' }));
 
 const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, () => console.log(`CloudVault API v4 on port ${PORT}`));
+const server = app.listen(PORT, () => console.log(`CloudVault API v5 on port ${PORT}`));
 server.setTimeout(600000);
 server.keepAliveTimeout = 620000;
 server.headersTimeout = 630000;
