@@ -32,7 +32,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Multer — chunks saved to /tmp/cv_uploads/
 const upload = multer({
   dest: '/tmp/cv_uploads/',
-  limits: { fileSize: 20 * 1024 * 1024 }
+  limits: { fileSize: 2 * 1024 * 1024 * 1024 } // 2GB max per chunk
 });
 
 ['/tmp/cv_uploads/', '/tmp/cv_zips/'].forEach(d => {
@@ -187,6 +187,13 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
       const { data: folder } = await supabase.from('folders').select('id').eq('id', folderId).eq('user_id', req.user.userId).single();
       if (!folder) throw new Error('Folder not found');
 
+      // Check if file already exists (prevent duplicate key)
+      const { data: existingFile } = await supabase.from('files').select('id').eq('id', fileId).single();
+      if (existingFile) {
+        await supabase.from('file_chunks_temp').delete().eq('file_id', fileId);
+        return res.json({ done: true, fileId, chunkIndex: idx });
+      }
+
       const { error: dbErr } = await supabase.from('files').insert({
         id: fileId,
         user_id: req.user.userId,
@@ -207,9 +214,9 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
       if (dbErr) throw dbErr;
 
       if (parseInt(fileSize) > 0) {
-        await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: parseInt(fileSize) }).catch(() => {});
+        try { await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: parseInt(fileSize) }); } catch {}
       }
-      await supabase.from('file_chunks_temp').delete().eq('file_id', fileId).catch(() => {});
+      try { await supabase.from('file_chunks_temp').delete().eq('file_id', fileId); } catch {}
       return res.json({ done: true, fileId, chunkIndex: idx });
     }
 
@@ -262,8 +269,10 @@ app.get('/api/file/:fileId', auth, async (req, res) => {
           res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipName)}"`);
           res.setHeader('Content-Type', 'application/zip');
           const stream = await axios.get(url, { responseType: 'stream', timeout: 300000 });
+          res.on('error', () => stream.data.destroy());
+          stream.data.on('error', (err) => { if (!res.headersSent) res.status(500).json({ error: 'Stream error' }); });
           stream.data.pipe(res);
-          await supabase.from('files').update({ download_count: (file.download_count || 0) + 1 }).eq('id', req.params.fileId).catch(() => {});
+          try { await supabase.from('files').update({ download_count: (file.download_count || 0) + 1 }).eq('id', req.params.fileId); } catch {}
           return;
         }
       }
@@ -387,7 +396,7 @@ app.delete('/api/files/:id', auth, async (req, res) => {
     const { data: f } = await supabase.from('files').select('id,size').eq('id', req.params.id).eq('user_id', req.user.userId).single();
     if (!f) return res.status(404).json({ error: 'Not found' });
     await supabase.from('files').delete().eq('id', req.params.id);
-    if (f.size > 0) await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: -f.size }).catch(() => {});
+    if (f.size > 0) { try { await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: -f.size }); } catch {} }
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
