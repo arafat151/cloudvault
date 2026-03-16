@@ -6,11 +6,11 @@
 <title>CloudVault Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#070712;--s1:#0f0f1e;--s2:#171728;--s3:#1f1f35;--bd:#252540;--bd2:#32325a;--p:#6c63ff;--p2:#8b5cf6;--g:#10b981;--r:#ef4444;--y:#f59e0b;--b:#3b82f6;--tx:#e2e2f0;--mu:#6b6b90;--mu2:#9090b0}
+:root{--bg:#070712;--s1:#0f0f1e;--s2:#171728;--s3:#1f1f35;--bd:#252540;--bd2:#32325a;--p:#6c63ff;--p2:#8b5cf6;--g:#10b981;--r:#ef4444;--y:#f59e0b;--tx:#e2e2f0;--mu:#6b6b90;--mu2:#9090b0}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);min-height:100vh}
 .btn{padding:.45rem 1rem;border-radius:8px;border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:600;font-size:.855rem;transition:all .2s;display:inline-flex;align-items:center;gap:.35rem}
-.btn-primary{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff}.btn-primary:hover{transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(135deg,var(--p),var(--p2));color:#fff}
 .btn-success{background:var(--g);color:#fff}
 .btn-danger{background:var(--r);color:#fff}
 .btn-warn{background:var(--y);color:#000}
@@ -18,18 +18,10 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);min-he
 .btn-ghost{background:transparent;color:var(--mu2);border:1px solid var(--bd)}.btn-ghost:hover{color:var(--tx)}
 .inp{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:.68rem 1rem;color:var(--tx);font-family:'Outfit',sans-serif;font-size:.875rem;outline:none;transition:border-color .2s}.inp:focus{border-color:var(--p)}
 textarea.inp{min-height:80px;resize:vertical}
-
-/* LOGIN */
 #login-page{min-height:100vh;display:flex;align-items:center;justify-content:center}
 .login-box{background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:2.5rem;width:100%;max-width:380px;text-align:center}
-.login-box h1{font-size:1.5rem;margin-bottom:.3rem}
-.login-box p{color:var(--mu2);font-size:.85rem;margin-bottom:1.5rem}
-
-/* MAIN */
 #main-page{display:none}
 nav{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
-.nav-logo{font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:.5rem}
-.badge-admin{background:rgba(239,68,68,.15);color:var(--r);font-size:.65rem;padding:.15rem .5rem;border-radius:100px;font-weight:700;letter-spacing:.05em}
 .layout{display:flex;min-height:calc(100vh - 56px)}
 .sidebar{width:200px;background:var(--s1);border-right:1px solid var(--bd);padding:1rem .75rem;position:fixed;top:56px;bottom:0;overflow-y:auto}
 .sb-item{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:9px;cursor:pointer;font-size:.845rem;font-weight:600;color:var(--mu2);transition:all .2s;margin-bottom:.1rem}
@@ -37,19 +29,15 @@ nav{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 1.5rem;heig
 .content{margin-left:200px;padding:1.5rem;flex:1}
 .tab{display:none}.tab.on{display:block}
 .page-title{font-size:1.3rem;font-weight:800;margin-bottom:1.3rem}
-
-/* STATS */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.9rem;margin-bottom:1.5rem}
 .stat-card{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.2rem}
 .stat-label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin-bottom:.35rem}
 .stat-value{font-size:1.6rem;font-weight:800}
 .stat-value.p{color:var(--p)}.stat-value.g{color:var(--g)}.stat-value.y{color:var(--y)}.stat-value.r{color:var(--r)}
-
-/* TABLE */
-.table-wrap{background:var(--s1);border:1px solid var(--bd);border-radius:13px;overflow:hidden;margin-bottom:1.2rem}
+.table-wrap{background:var(--s1);border:1px solid var(--bd);border-radius:13px;overflow:auto;margin-bottom:1.2rem}
 table{width:100%;border-collapse:collapse;font-size:.82rem}
 th{text-align:left;padding:.75rem 1rem;background:var(--s2);color:var(--mu);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
-td{padding:.8rem 1rem;border-bottom:1px solid var(--bd);vertical-align:middle}
+td{padding:.75rem 1rem;border-bottom:1px solid var(--bd);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:rgba(255,255,255,.02)}
 .badge{display:inline-block;padding:.2rem .6rem;border-radius:100px;font-size:.7rem;font-weight:700}
@@ -57,44 +45,44 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .badge-a{background:rgba(16,185,129,.15);color:var(--g)}
 .badge-r{background:rgba(239,68,68,.15);color:var(--r)}
 .badge-f{background:rgba(108,99,255,.15);color:var(--p)}
-
-/* SITE EDITOR */
-.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
 @media(max-width:700px){.editor-grid{grid-template-columns:1fr}}
 .editor-card{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.3rem}
 .editor-card h3{font-size:.9rem;font-weight:700;margin-bottom:1rem;color:var(--mu2)}
 .fg{margin-bottom:.9rem}
 .fg label{display:block;font-size:.78rem;font-weight:600;color:var(--mu2);margin-bottom:.3rem}
-.notice-box{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:.9rem;font-size:.82rem;color:var(--y);margin-bottom:1rem}
-
-/* LOGO PREVIEW */
-.logo-preview{width:50px;height:50px;border-radius:12px;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin-bottom:.7rem}
-
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{animation:spin 1s linear infinite;display:inline-block}
-.alert{padding:.65rem .9rem;border-radius:8px;font-size:.82rem;margin-bottom:.8rem}
+.notice-preview{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:.9rem;font-size:.82rem;color:var(--y);margin-bottom:.5rem;min-height:40px}
+.alert{padding:.65rem .9rem;border-radius:8px;font-size:.82rem;margin-bottom:.8rem;display:none}
 .al-s{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--g)}
 .al-e{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--r)}
+.pw-box{background:var(--s2);border:1px solid var(--bd2);border-radius:10px;padding:1rem;margin-top:.8rem}
+.pw-row{display:flex;align-items:center;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid var(--bd);font-size:.82rem}
+.pw-row:last-child{border-bottom:none}
+.pw-val{font-family:monospace;background:rgba(108,99,255,.1);padding:.2rem .5rem;border-radius:5px;color:var(--p);font-size:.78rem;letter-spacing:.05em}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+.copy-btn{background:rgba(108,99,255,.15);border:none;color:var(--p);padding:.2rem .5rem;border-radius:5px;cursor:pointer;font-size:.72rem;font-family:'Outfit',sans-serif}
+.copy-btn:hover{background:rgba(108,99,255,.3)}
 </style>
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="login-page">
   <div class="login-box">
     <div style="font-size:2.5rem;margin-bottom:.5rem">🔐</div>
-    <h1>Admin Panel</h1>
-    <p>CloudVault Admin Access</p>
-    <div id="login-err" style="display:none" class="alert al-e"></div>
+    <h1 style="font-size:1.5rem;margin-bottom:.3rem">Admin Panel</h1>
+    <p style="color:var(--mu2);font-size:.85rem;margin-bottom:1.5rem">CloudVault Admin Access</p>
+    <div id="login-err" class="alert al-e"></div>
     <input class="inp" id="ak" type="password" placeholder="Enter admin key" style="margin-bottom:.9rem" onkeydown="if(event.key==='Enter')doLogin()">
     <button class="btn btn-primary" onclick="doLogin()" style="width:100%;justify-content:center;padding:.8rem">Enter</button>
   </div>
 </div>
 
-<!-- MAIN -->
 <div id="main-page">
   <nav>
-    <div class="nav-logo">☁️ CloudVault <span class="badge-admin">ADMIN</span></div>
+    <div style="font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:.5rem">
+      ☁️ CloudVault <span style="background:rgba(239,68,68,.15);color:var(--r);font-size:.65rem;padding:.15rem .5rem;border-radius:100px;font-weight:700">ADMIN</span>
+    </div>
     <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
   </nav>
   <div class="layout">
@@ -109,7 +97,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <!-- DASHBOARD -->
       <div class="tab on" id="tab-dashboard">
         <div class="page-title">Dashboard</div>
-        <div class="stats-grid" id="stats-grid">
+        <div class="stats-grid">
           <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value p" id="s-users">-</div></div>
           <div class="stat-card"><div class="stat-label">Total Files</div><div class="stat-value g" id="s-files">-</div></div>
           <div class="stat-card"><div class="stat-label">Pending Payments</div><div class="stat-value y" id="s-pending">-</div></div>
@@ -118,9 +106,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div style="background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.2rem">
           <div style="font-size:.8rem;font-weight:700;color:var(--mu2);margin-bottom:.8rem">Quick Actions</div>
           <div style="display:flex;gap:.7rem;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" onclick="showTab('payments')">View Payments</button>
-            <button class="btn btn-success btn-sm" onclick="showTab('users')">Manage Users</button>
-            <button class="btn btn-warn btn-sm" onclick="showTab('site')">Edit Site</button>
+            <button class="btn btn-primary btn-sm" onclick="showTab('payments')">💳 View Payments</button>
+            <button class="btn btn-success btn-sm" onclick="showTab('users')">👥 Manage Users</button>
+            <button class="btn btn-warn btn-sm" onclick="showTab('site')">🎨 Edit Site</button>
           </div>
         </div>
       </div>
@@ -133,40 +121,41 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
       <!-- USERS -->
       <div class="tab" id="tab-users">
-        <div class="page-title">Users</div>
+        <div class="page-title">Users & Passwords</div>
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:.9rem;font-size:.82rem;color:var(--y);margin-bottom:1rem">
+          ⚠️ Folder passwords are one-way encrypted. Admin can only see folder names, not passwords. Users must save their own passwords.
+        </div>
         <div id="users-content"><div style="text-align:center;padding:2rem"><span class="spin">⏳</span></div></div>
       </div>
 
       <!-- SITE EDITOR -->
       <div class="tab" id="tab-site">
         <div class="page-title">Site Editor</div>
-        <div id="site-al" style="display:none" class="alert"></div>
+        <div id="site-al" class="alert"></div>
         <div class="editor-grid">
           <div class="editor-card">
             <h3>🏷️ Branding</h3>
             <div class="fg"><label>Site Name</label><input class="inp" id="site-name" placeholder="CloudVault"></div>
-            <div class="fg"><label>Logo Emoji</label><input class="inp" id="site-logo" placeholder="☁️" style="font-size:1.5rem;text-align:center"></div>
-            <div class="logo-preview" id="logo-prev">☁️</div>
+            <div class="fg"><label>Logo Emoji</label><input class="inp" id="site-logo" placeholder="☁️" style="font-size:1.3rem;text-align:center" oninput="updatePrev()"></div>
           </div>
           <div class="editor-card">
             <h3>📢 Notice Banner</h3>
-            <div class="fg"><label>Notice Text (shows at top of site)</label><textarea class="inp" id="site-notice" placeholder="e.g. 🎉 Special offer: 50% off this week!"></textarea></div>
-            <div class="notice-box" id="notice-preview">Notice preview will appear here</div>
+            <div class="fg"><label>Notice (shows top of site, leave empty to hide)</label><textarea class="inp" id="site-notice" placeholder="e.g. 🎉 Special offer this week!" oninput="updatePrev()"></textarea></div>
+            <div class="notice-preview" id="notice-prev">No notice</div>
           </div>
           <div class="editor-card">
-            <h3>💰 Pricing</h3>
+            <h3>💰 Pricing Settings</h3>
             <div class="fg"><label>Free Storage (GB)</label><input class="inp" id="site-free" type="number" placeholder="100"></div>
             <div class="fg"><label>Price per TB (৳)</label><input class="inp" id="site-price" type="number" placeholder="5"></div>
-            <div class="fg"><label>Nagad Number</label><input class="inp" id="site-nagad" placeholder="01XXXXXXXXX"></div>
           </div>
           <div class="editor-card">
-            <h3>📝 Hero Text</h3>
+            <h3>📝 Homepage Text</h3>
             <div class="fg"><label>Hero Title Line 1</label><input class="inp" id="site-h1" placeholder="Your Files."></div>
-            <div class="fg"><label>Hero Title Line 2</label><input class="inp" id="site-h2" placeholder="Safe Forever."></div>
-            <div class="fg"><label>Hero Subtitle</label><textarea class="inp" id="site-sub" placeholder="Upload anything..."></textarea></div>
+            <div class="fg"><label>Hero Title Line 2 (colored)</label><input class="inp" id="site-h2" placeholder="Safe Forever."></div>
+            <div class="fg"><label>Subtitle</label><textarea class="inp" id="site-sub" placeholder="Upload anything..."></textarea></div>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="saveSiteConfig()" style="padding:.8rem 2rem;font-size:.95rem">💾 Save All Changes</button>
+        <button class="btn btn-primary" onclick="saveSite()" style="padding:.8rem 2rem;font-size:.95rem">💾 Save All Changes</button>
       </div>
 
     </main>
@@ -177,28 +166,25 @@ tr:hover td{background:rgba(255,255,255,.02)}
 const API = 'https://cloudvault-e5wb.onrender.com';
 let adminKey = '';
 
-function doLogin(){
+async function doLogin(){
   const k = document.getElementById('ak').value.trim();
-  if(!k){ showErr('Enter admin key'); return; }
+  if(!k) return showErr('Enter admin key');
   adminKey = k;
-  // Test key
-  fetch(`${API}/api/admin/stats?key=${k}`)
-    .then(r => r.json())
-    .then(d => {
-      if(d.error){ showErr('Wrong admin key!'); adminKey=''; return; }
-      document.getElementById('login-page').style.display='none';
-      document.getElementById('main-page').style.display='block';
-      loadStats(d);
-    })
-    .catch(() => showErr('Cannot connect to server'));
+  try{
+    const r = await fetch(`${API}/api/admin/stats?key=${k}`);
+    const d = await r.json();
+    if(d.error || !r.ok){ showErr('Wrong admin key!'); adminKey=''; return; }
+    document.getElementById('login-page').style.display='none';
+    document.getElementById('main-page').style.display='block';
+    loadStats(d);
+  }catch(e){ showErr('Cannot connect: '+e.message); adminKey=''; }
 }
 
 function showErr(msg){
-  const el = document.getElementById('login-err');
-  el.textContent = msg; el.style.display='block';
-  setTimeout(()=>el.style.display='none', 4000);
+  const el=document.getElementById('login-err');
+  el.textContent=msg; el.style.display='block';
+  setTimeout(()=>el.style.display='none',4000);
 }
-
 function doLogout(){ adminKey=''; location.reload(); }
 
 function showTab(t){
@@ -208,149 +194,186 @@ function showTab(t){
   document.getElementById('sb-'+t).classList.add('on');
   if(t==='payments') loadPayments();
   if(t==='users') loadUsers();
-  if(t==='site') loadSiteConfig();
+  if(t==='site') loadSite();
 }
 
 function loadStats(d){
-  document.getElementById('s-users').textContent = d.userCount || 0;
-  document.getElementById('s-files').textContent = d.fileCount || 0;
-  document.getElementById('s-pending').textContent = d.pendingCount || 0;
-  document.getElementById('s-revenue').textContent = '৳' + (d.totalRevenue || 0);
+  document.getElementById('s-users').textContent=d.userCount||0;
+  document.getElementById('s-files').textContent=d.fileCount||0;
+  document.getElementById('s-pending').textContent=d.pendingCount||0;
+  document.getElementById('s-revenue').textContent='৳'+(d.totalRevenue||0);
 }
 
 async function loadPayments(){
-  const el = document.getElementById('pay-content');
-  el.innerHTML = '<div style="text-align:center;padding:2rem"><span class="spin">⏳</span></div>';
+  const el=document.getElementById('pay-content');
+  el.innerHTML='<div style="text-align:center;padding:2rem"><span class="spin">⏳</span></div>';
   try{
-    const d = await fetch(`${API}/api/admin/payments?key=${adminKey}`).then(r=>r.json());
-    const pays = d.payments || [];
-    if(!pays.length){ el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--mu)">No payments yet</div>'; return; }
-    el.innerHTML = `
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Date</th><th>User ID</th><th>Txn ID</th><th>Amount</th><th>Storage</th><th>Status</th><th>Action</th>
-          </tr></thead>
-          <tbody>
-            ${pays.map(p=>`<tr>
-              <td>${new Date(p.created_at).toLocaleDateString()}</td>
-              <td style="font-size:.7rem;color:var(--mu)">${p.user_id?.slice(0,8)}...</td>
-              <td style="font-family:monospace;font-size:.78rem">${p.transaction_id}</td>
-              <td style="color:var(--g);font-weight:700">৳${p.amount}</td>
-              <td>${p.storage_tb}TB × ${p.months}mo</td>
-              <td><span class="badge badge-${p.status==='approved'?'a':p.status==='rejected'?'r':'p'}">${p.status}</span></td>
-              <td>
-                ${p.status==='pending'?`
-                  <button class="btn btn-success btn-sm" onclick="approvePayment('${p.transaction_id}')">✅ Approve</button>
-                  <button class="btn btn-danger btn-sm" style="margin-left:.3rem" onclick="rejectPayment('${p.transaction_id}')">❌ Reject</button>
-                `:'—'}
-              </td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>`;
-  }catch(e){ el.innerHTML=`<div style="color:var(--r);padding:1rem">${e.message}</div>`; }
+    const d=await fetch(`${API}/api/admin/payments?key=${adminKey}`).then(r=>r.json());
+    const pays=d.payments||[];
+    if(!pays.length){el.innerHTML='<div style="text-align:center;padding:2rem;color:var(--mu)">No payments yet</div>';return;}
+    el.innerHTML=`<div class="table-wrap"><table>
+      <thead><tr><th>Date</th><th>Txn ID</th><th>Nagad No.</th><th>Amount</th><th>Plan</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${pays.map(p=>`<tr>
+        <td>${new Date(p.created_at).toLocaleDateString('en-GB')}</td>
+        <td style="font-family:monospace;font-size:.78rem">${p.transaction_id}</td>
+        <td style="font-family:monospace">${p.bkash_number||'—'}</td>
+        <td style="color:var(--g);font-weight:700">৳${p.amount}</td>
+        <td>${p.storage_tb}TB × ${p.months}mo</td>
+        <td><span class="badge badge-${p.status==='approved'?'a':p.status==='rejected'?'r':'p'}">${p.status}</span></td>
+        <td style="display:flex;gap:.4rem">
+          ${p.status==='pending'?`
+            <button class="btn btn-success btn-sm" onclick="approveP('${p.transaction_id}')">✅ Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="rejectP('${p.transaction_id}')">❌ Reject</button>
+          `:'—'}
+        </td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }catch(e){el.innerHTML=`<div style="color:var(--r);padding:1rem">${e.message}</div>`;}
 }
 
-async function approvePayment(txnId){
-  if(!confirm('Approve this payment?')) return;
-  await fetch(`${API}/api/admin/approve`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:adminKey,transactionId:txnId}) });
+async function approveP(txn){
+  if(!confirm('Approve this payment?'))return;
+  await fetch(`${API}/api/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:adminKey,transactionId:txn})});
+  loadPayments(); loadStats_fresh();
+}
+async function rejectP(txn){
+  if(!confirm('Reject this payment?'))return;
+  await fetch(`${API}/api/admin/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:adminKey,transactionId:txn})});
   loadPayments();
 }
-
-async function rejectPayment(txnId){
-  if(!confirm('Reject this payment?')) return;
-  await fetch(`${API}/api/admin/reject`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({key:adminKey,transactionId:txnId}) });
-  loadPayments();
+async function loadStats_fresh(){
+  const d=await fetch(`${API}/api/admin/stats?key=${adminKey}`).then(r=>r.json());
+  loadStats(d);
 }
 
 async function loadUsers(){
-  const el = document.getElementById('users-content');
-  el.innerHTML = '<div style="text-align:center;padding:2rem"><span class="spin">⏳</span></div>';
+  const el=document.getElementById('users-content');
+  el.innerHTML='<div style="text-align:center;padding:2rem"><span class="spin">⏳</span></div>';
   try{
-    const d = await fetch(`${API}/api/admin/users?key=${adminKey}`).then(r=>r.json());
-    const users = d.users || [];
-    el.innerHTML = `
-      <div style="margin-bottom:.7rem;font-size:.82rem;color:var(--mu)">Total: ${users.length} users</div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Name</th><th>Email</th><th>Plan</th><th>Storage Used</th><th>Expires</th><th>Joined</th>
-          </tr></thead>
-          <tbody>
-            ${users.map(u=>`<tr>
-              <td style="font-weight:600">${u.name}</td>
-              <td style="color:var(--mu2)">${u.email}</td>
-              <td><span class="badge badge-${u.plan==='free'?'f':'a'}">${u.plan}</span></td>
-              <td>${fmtSz(u.storage_used||0)} / ${fmtSz(u.storage_limit||0)}</td>
-              <td style="font-size:.75rem;color:var(--mu)">${u.plan_expires_at?new Date(u.plan_expires_at).toLocaleDateString():'—'}</td>
-              <td style="font-size:.75rem;color:var(--mu)">${new Date(u.created_at).toLocaleDateString()}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
+    const d=await fetch(`${API}/api/admin/users?key=${adminKey}`).then(r=>r.json());
+    const users=d.users||[];
+    el.innerHTML=`
+      <div style="margin-bottom:.7rem;color:var(--mu);font-size:.82rem">Total: ${users.length} users</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Storage</th><th>Expires</th><th>Joined</th><th>Folders</th></tr></thead>
+        <tbody>${users.map(u=>`<tr>
+          <td style="font-weight:600">${u.name}</td>
+          <td>${u.email}</td>
+          <td><span class="badge badge-${u.plan==='free'?'f':'a'}">${u.plan}</span></td>
+          <td>${fmtSz(u.storage_used||0)} / ${fmtSz(u.storage_limit||0)}</td>
+          <td style="font-size:.75rem;color:var(--mu)">${u.plan_expires_at?new Date(u.plan_expires_at).toLocaleDateString('en-GB'):'—'}</td>
+          <td style="font-size:.75rem;color:var(--mu)">${new Date(u.created_at).toLocaleDateString('en-GB')}</td>
+          <td><button class="btn btn-ghost btn-sm" onclick="showFolders('${u.id}','${u.name}','${u.email}')">📁 View</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  }catch(e){el.innerHTML=`<div style="color:var(--r);padding:1rem">${e.message}</div>`;}
+}
+
+async function showFolders(userId, name, email){
+  try{
+    const d=await fetch(`${API}/api/admin/user/${userId}/folders?key=${adminKey}`).then(r=>r.json());
+    const folders=d.folders||[];
+    if(!folders.length){alert(`${name} has no folders yet.`);return;}
+    
+    // Build info text for copying/emailing
+    let text=`CloudVault Folder Info\nUser: ${name} (${email})\n\n`;
+    text+=`Folders (${folders.length}):\n`;
+    folders.forEach((f,i)=>{
+      text+=`${i+1}. ${f.name} — Created: ${new Date(f.created_at).toLocaleDateString('en-GB')}\n`;
+    });
+    text+=`\n⚠️ Folder passwords are encrypted and cannot be recovered.\nUser must have saved their passwords when they created each folder.`;
+    
+    // Show modal
+    const modal=document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(7,7,18,.95);z-index:999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
+    modal.innerHTML=`
+      <div style="background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:1.9rem;width:100%;max-width:500px;max-height:80vh;overflow-y:auto">
+        <h3 style="font-size:1.1rem;margin-bottom:.3rem">📁 ${name}'s Folders</h3>
+        <p style="color:var(--mu2);font-size:.82rem;margin-bottom:1rem">${email}</p>
+        <div style="background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:1rem;margin-bottom:1rem">
+          ${folders.map(f=>`
+            <div style="display:flex;justify-content:space-between;padding:.45rem 0;border-bottom:1px solid var(--bd);font-size:.845rem">
+              <span>📁 ${f.name}</span>
+              <span style="color:var(--mu);font-size:.75rem">${new Date(f.created_at).toLocaleDateString('en-GB')}</span>
+            </div>
+          `).join('')}
+        </div>
+        <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:.8rem;font-size:.78rem;color:var(--y);margin-bottom:1rem">
+          ⚠️ Passwords are bcrypt hashed — admin cannot see them. The user must have saved them when creating each folder.
+        </div>
+        <div style="display:flex;gap:.6rem">
+          <button class="btn btn-primary btn-sm" onclick="copyText(\`${text.replace(/`/g,"'")}\`)">📋 Copy Info</button>
+          <button class="btn btn-ghost btn-sm" onclick="this.closest('[style]').remove()">Close</button>
+        </div>
       </div>`;
-  }catch(e){ el.innerHTML=`<div style="color:var(--r);padding:1rem">${e.message}</div>`; }
+    document.body.appendChild(modal);
+    modal.addEventListener('click',e=>{if(e.target===modal)modal.remove();});
+  }catch(e){alert('Error: '+e.message);}
 }
 
-async function loadSiteConfig(){
+function copyText(t){
+  navigator.clipboard.writeText(t).then(()=>alert('Copied to clipboard!'));
+}
+
+async function loadSite(){
   try{
-    const d = await fetch(`${API}/api/admin/config?key=${adminKey}`).then(r=>r.json());
-    const c = d.config || {};
-    document.getElementById('site-name').value = c.site_name || 'CloudVault';
-    document.getElementById('site-logo').value = c.logo_emoji || '☁️';
-    document.getElementById('site-notice').value = c.notice || '';
-    document.getElementById('site-free').value = c.free_storage_gb || 100;
-    document.getElementById('site-price').value = c.price_per_tb || 5;
-    document.getElementById('site-h1').value = c.hero_h1 || 'Your Files.';
-    document.getElementById('site-h2').value = c.hero_h2 || 'Safe Forever.';
-    document.getElementById('site-sub').value = c.hero_sub || '';
-    updatePreviews();
-  }catch{}
+    const d=await fetch(`${API}/api/admin/config?key=${adminKey}`).then(r=>r.json());
+    const c=d.config||{};
+    document.getElementById('site-name').value=c.site_name||'CloudVault';
+    document.getElementById('site-logo').value=c.logo_emoji||'☁️';
+    document.getElementById('site-notice').value=c.notice||'';
+    document.getElementById('site-free').value=c.free_storage_gb||100;
+    document.getElementById('site-price').value=c.price_per_tb||5;
+    document.getElementById('site-h1').value=c.hero_h1||'Your Files.';
+    document.getElementById('site-h2').value=c.hero_h2||'Safe Forever.';
+    document.getElementById('site-sub').value=c.hero_sub||'';
+    updatePrev();
+  }catch(e){
+    // site_config table might not exist yet
+    document.getElementById('site-al').textContent='⚠️ Run the site_config SQL in Supabase first!';
+    document.getElementById('site-al').className='alert al-e';
+    document.getElementById('site-al').style.display='block';
+  }
 }
 
-function updatePreviews(){
-  const logo = document.getElementById('site-logo').value || '☁️';
-  document.getElementById('logo-prev').textContent = logo;
-  const notice = document.getElementById('site-notice').value;
-  document.getElementById('notice-preview').textContent = notice || 'No notice set';
+function updatePrev(){
+  const n=document.getElementById('site-notice').value;
+  document.getElementById('notice-prev').textContent=n||'No notice set';
 }
 
-document.getElementById('site-logo')?.addEventListener('input', updatePreviews);
-document.getElementById('site-notice')?.addEventListener('input', updatePreviews);
-
-async function saveSiteConfig(){
-  const config = {
-    key: adminKey,
-    site_name: document.getElementById('site-name').value,
-    logo_emoji: document.getElementById('site-logo').value,
-    notice: document.getElementById('site-notice').value,
-    free_storage_gb: parseInt(document.getElementById('site-free').value) || 100,
-    price_per_tb: parseInt(document.getElementById('site-price').value) || 5,
-    hero_h1: document.getElementById('site-h1').value,
-    hero_h2: document.getElementById('site-h2').value,
-    hero_sub: document.getElementById('site-sub').value,
+async function saveSite(){
+  const config={
+    key:adminKey,
+    site_name:document.getElementById('site-name').value||'CloudVault',
+    logo_emoji:document.getElementById('site-logo').value||'☁️',
+    notice:document.getElementById('site-notice').value||'',
+    free_storage_gb:parseInt(document.getElementById('site-free').value)||100,
+    price_per_tb:parseInt(document.getElementById('site-price').value)||5,
+    hero_h1:document.getElementById('site-h1').value||'Your Files.',
+    hero_h2:document.getElementById('site-h2').value||'Safe Forever.',
+    hero_sub:document.getElementById('site-sub').value||'',
   };
   try{
-    await fetch(`${API}/api/admin/config`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(config) });
-    const al = document.getElementById('site-al');
-    al.textContent = '✅ Saved successfully!';
-    al.className = 'alert al-s';
-    al.style.display = 'block';
-    setTimeout(()=>al.style.display='none', 3000);
+    const r=await fetch(`${API}/api/admin/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});
+    const d=await r.json();
+    if(!r.ok||d.error) throw new Error(d.error||'Failed');
+    const al=document.getElementById('site-al');
+    al.textContent='✅ Saved! Changes will show on site within a minute.';
+    al.className='alert al-s'; al.style.display='block';
+    setTimeout(()=>al.style.display='none',4000);
   }catch(e){
-    const al = document.getElementById('site-al');
-    al.textContent = 'Error: '+e.message;
-    al.className = 'alert al-e';
-    al.style.display = 'block';
+    const al=document.getElementById('site-al');
+    al.textContent='❌ Error: '+e.message+' — Make sure site_config SQL was run in Supabase!';
+    al.className='alert al-e'; al.style.display='block';
   }
 }
 
 function fmtSz(b){
-  if(!b) return '0 B';
-  if(b<1024) return b+' B';
-  if(b<1048576) return(b/1024).toFixed(1)+' KB';
-  if(b<1073741824) return(b/1048576).toFixed(1)+' MB';
-  if(b<1099511627776) return(b/1073741824).toFixed(2)+' GB';
+  if(!b)return'0 B';
+  if(b<1024)return b+' B';
+  if(b<1048576)return(b/1024).toFixed(1)+' KB';
+  if(b<1073741824)return(b/1048576).toFixed(1)+' MB';
+  if(b<1099511627776)return(b/1073741824).toFixed(2)+' GB';
   return(b/1099511627776).toFixed(2)+' TB';
 }
 </script>
