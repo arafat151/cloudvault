@@ -18,15 +18,16 @@ body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--tx);min-he
 .btn-ghost{background:transparent;color:var(--mu2);border:1px solid var(--bd)}.btn-ghost:hover{color:var(--tx)}
 .inp{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:.68rem 1rem;color:var(--tx);font-family:'Outfit',sans-serif;font-size:.875rem;outline:none;transition:border-color .2s}.inp:focus{border-color:var(--p)}
 textarea.inp{min-height:80px;resize:vertical}
+input[type=date].inp{color-scheme:dark}
 #login-page{min-height:100vh;display:flex;align-items:center;justify-content:center}
 .login-box{background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:2.5rem;width:100%;max-width:380px;text-align:center}
 #main-page{display:none}
 nav{background:var(--s1);border-bottom:1px solid var(--bd);padding:0 1.5rem;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .layout{display:flex;min-height:calc(100vh - 56px)}
-.sidebar{width:200px;background:var(--s1);border-right:1px solid var(--bd);padding:1rem .75rem;position:fixed;top:56px;bottom:0;overflow-y:auto}
+.sidebar{width:210px;background:var(--s1);border-right:1px solid var(--bd);padding:1rem .75rem;position:fixed;top:56px;bottom:0;overflow-y:auto}
 .sb-item{display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;border-radius:9px;cursor:pointer;font-size:.845rem;font-weight:600;color:var(--mu2);transition:all .2s;margin-bottom:.1rem}
 .sb-item:hover,.sb-item.on{background:rgba(108,99,255,.1);color:var(--p)}
-.content{margin-left:200px;padding:1.5rem;flex:1}
+.content{margin-left:210px;padding:1.5rem;flex:1}
 .tab{display:none}.tab.on{display:block}
 .page-title{font-size:1.3rem;font-weight:800;margin-bottom:1.3rem}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.9rem;margin-bottom:1.5rem}
@@ -45,10 +46,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .badge-a{background:rgba(16,185,129,.15);color:var(--g)}
 .badge-r{background:rgba(239,68,68,.15);color:var(--r)}
 .badge-f{background:rgba(108,99,255,.15);color:var(--p)}
-.expire-soon{color:var(--r);font-weight:700}
-.expire-ok{color:var(--g)}
+.expire-soon{color:var(--r);font-weight:700}.expire-ok{color:var(--g)}
 .editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
-@media(max-width:700px){.editor-grid{grid-template-columns:1fr}}
+@media(max-width:768px){.editor-grid{grid-template-columns:1fr}.content{margin-left:0}.sidebar{display:none}}
 .editor-card{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.3rem}
 .editor-card h3{font-size:.9rem;font-weight:700;margin-bottom:1rem;color:var(--mu2)}
 .fg{margin-bottom:.9rem}
@@ -58,10 +58,19 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .al-s{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);color:var(--g)}
 .al-e{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:var(--r)}
 .logo-upload-area{border:2px dashed var(--bd2);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;transition:all .3s;position:relative}
-.logo-upload-area:hover{border-color:var(--p);background:rgba(108,99,255,.04)}
+.logo-upload-area:hover{border-color:var(--p)}
 .logo-upload-area input{position:absolute;inset:0;opacity:0;cursor:pointer}
 .logo-preview-img{width:60px;height:60px;object-fit:contain;border-radius:10px;margin-bottom:.5rem}
-.logo-size-note{font-size:.72rem;color:var(--mu);margin-top:.4rem}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--bd)}
+.toggle-row:last-child{border-bottom:none}
+.toggle-label{font-size:.845rem;font-weight:600}
+.toggle-sub{font-size:.75rem;color:var(--mu2);margin-top:.1rem}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--s3);border-radius:100px;cursor:pointer;transition:.3s}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.toggle-slider{background:var(--p)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(20px)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spin{animation:spin 1s linear infinite;display:inline-block}
 </style>
@@ -82,9 +91,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <div id="main-page">
   <nav>
     <div style="font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:.5rem">
-      <img id="nav-logo-img" style="width:28px;height:28px;object-fit:contain;border-radius:6px;display:none">
-      <span id="nav-logo-emoji">☁️</span> CloudVault
-      <span style="background:rgba(239,68,68,.15);color:var(--r);font-size:.65rem;padding:.15rem .5rem;border-radius:100px;font-weight:700">ADMIN</span>
+      ☁️ CloudVault <span style="background:rgba(239,68,68,.15);color:var(--r);font-size:.65rem;padding:.15rem .5rem;border-radius:100px;font-weight:700">ADMIN</span>
     </div>
     <button class="btn btn-ghost btn-sm" onclick="doLogout()">Logout</button>
   </nav>
@@ -94,6 +101,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="sb-item" onclick="showTab('payments')" id="sb-payments">💳 Payments</div>
       <div class="sb-item" onclick="showTab('users')" id="sb-users">👥 Users</div>
       <div class="sb-item" onclick="showTab('site')" id="sb-site">🎨 Site Editor</div>
+      <div class="sb-item" onclick="showTab('bonus')" id="sb-bonus">🎁 Login Bonus</div>
+      <div class="sb-item" onclick="showTab('ads')" id="sb-ads">📢 Ads</div>
     </aside>
     <main class="content">
 
@@ -112,6 +121,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <button class="btn btn-primary btn-sm" onclick="showTab('payments')">💳 Payments</button>
             <button class="btn btn-success btn-sm" onclick="showTab('users')">👥 Users</button>
             <button class="btn btn-warn btn-sm" onclick="showTab('site')">🎨 Edit Site</button>
+            <button class="btn btn-ghost btn-sm" onclick="showTab('bonus')">🎁 Login Bonus</button>
           </div>
         </div>
       </div>
@@ -126,7 +136,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="tab" id="tab-users">
         <div class="page-title">Users</div>
         <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:.75rem 1rem;font-size:.82rem;color:var(--y);margin-bottom:1rem">
-          ⏰ Red = expires within 14 days. Send them a reminder!
+          ⏰ Red = expires within 14 days. Send them a renewal reminder!
         </div>
         <div id="users-content"><div style="text-align:center;padding:2rem"><span class="spin">⏳</span></div></div>
       </div>
@@ -136,17 +146,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="page-title">Site Editor</div>
         <div id="site-al" class="alert"></div>
         <div class="editor-grid">
-
           <div class="editor-card">
             <h3>🖼️ Logo Upload</h3>
             <div class="logo-upload-area" id="logo-drop">
               <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" onchange="logoSelected(this)">
               <img id="logo-prev-img" class="logo-preview-img" style="display:none">
-              <div id="logo-placeholder">
-                <div style="font-size:1.8rem;margin-bottom:.4rem">📁</div>
-                <div style="font-size:.82rem;color:var(--mu2)">Click to upload logo</div>
-              </div>
-              <div class="logo-size-note">Recommended: 60×60px PNG with transparent background</div>
+              <div id="logo-placeholder"><div style="font-size:1.8rem;margin-bottom:.4rem">📁</div><div style="font-size:.82rem;color:var(--mu2)">Click to upload logo</div></div>
+              <div style="font-size:.72rem;color:var(--mu);margin-top:.4rem">Recommended: 60×60px PNG transparent</div>
             </div>
             <button class="btn btn-primary btn-sm" style="margin-top:.7rem;width:100%;justify-content:center" onclick="uploadLogo()">💾 Save Logo</button>
           </div>
@@ -154,7 +160,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <div class="editor-card">
             <h3>📢 Notice Banner</h3>
             <div class="fg">
-              <label>Notice (empty = hidden)</label>
+              <label>Notice text (empty = hidden)</label>
               <textarea class="inp" id="site-notice" placeholder="e.g. 🎉 EID offer: 50% off!" oninput="updatePrev()"></textarea>
             </div>
             <div class="notice-preview" id="notice-prev">No notice</div>
@@ -162,9 +168,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
           <div class="editor-card">
             <h3>💰 Pricing</h3>
-            <div class="fg"><label>Free Storage (GB)</label><input class="inp" id="site-free" type="number" placeholder="100"></div>
-            <div class="fg"><label>Price per TB (৳)</label><input class="inp" id="site-price" type="number" placeholder="5"></div>
             <div class="fg"><label>Site Name</label><input class="inp" id="site-name" placeholder="CloudVault"></div>
+            <div class="fg"><label>Free Storage (GB) for new users</label><input class="inp" id="site-free" type="number" placeholder="100"></div>
+            <div class="fg">
+              <label>Discount % (0 = no discount)</label>
+              <input class="inp" id="site-disc" type="number" min="0" max="99" placeholder="0">
+              <div style="font-size:.72rem;color:var(--mu);margin-top:.3rem">e.g. 50 = 50% off all plans. Shows crossed-out original price.</div>
+            </div>
           </div>
 
           <div class="editor-card">
@@ -173,9 +183,61 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <div class="fg"><label>Hero Line 2 (colored)</label><input class="inp" id="site-h2" placeholder="Safe Forever."></div>
             <div class="fg"><label>Subtitle</label><textarea class="inp" id="site-sub" placeholder="Upload anything..."></textarea></div>
           </div>
-
         </div>
         <button class="btn btn-primary" onclick="saveSite()" style="padding:.8rem 2rem;font-size:.95rem">💾 Save All Changes</button>
+      </div>
+
+      <!-- LOGIN BONUS -->
+      <div class="tab" id="tab-bonus">
+        <div class="page-title">🎁 Login Bonus</div>
+        <div id="bonus-al" class="alert"></div>
+        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.5rem;max-width:520px">
+          <p style="font-size:.82rem;color:var(--mu2);margin-bottom:1.2rem">When active, users can claim free storage every day they log in during the bonus period.</p>
+          
+          <div class="toggle-row">
+            <div><div class="toggle-label">Enable Login Bonus</div><div class="toggle-sub">Users see a "Claim" button on their dashboard</div></div>
+            <label class="toggle"><input type="checkbox" id="bonus-enabled"><span class="toggle-slider"></span></label>
+          </div>
+          
+          <div style="margin-top:1rem">
+            <div class="fg"><label>Bonus per day (GB)</label><input class="inp" id="bonus-gb" type="number" min="1" placeholder="2"></div>
+            <div class="fg"><label>Start Date</label><input class="inp" id="bonus-start" type="date"></div>
+            <div class="fg"><label>End Date</label><input class="inp" id="bonus-end" type="date"></div>
+          </div>
+
+          <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:10px;padding:.8rem;font-size:.78rem;color:var(--p);margin-bottom:1rem">
+            💡 Example: Start = March 30, End = April 2 = users get bonus on those 4 days if they log in.
+          </div>
+
+          <button class="btn btn-primary" onclick="saveBonus()" style="width:100%;justify-content:center;padding:.8rem">💾 Save Bonus Settings</button>
+        </div>
+      </div>
+
+      <!-- ADS -->
+      <div class="tab" id="tab-ads">
+        <div class="page-title">📢 Ads Management</div>
+        <div id="ads-al" class="alert"></div>
+        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.5rem;max-width:600px">
+          
+          <div class="toggle-row" style="margin-bottom:1rem">
+            <div><div class="toggle-label">Enable Ads</div><div class="toggle-sub">Turn ads on/off globally</div></div>
+            <label class="toggle"><input type="checkbox" id="ads-enabled"><span class="toggle-slider"></span></label>
+          </div>
+
+          <div class="fg">
+            <label>Ad Script Code</label>
+            <div style="font-size:.75rem;color:var(--mu2);margin-bottom:.4rem">Paste your Adsterra or any ad network script here. It will be injected into the website when ads are enabled.</div>
+            <textarea class="inp" id="ads-script" style="min-height:120px;font-family:monospace;font-size:.78rem" placeholder='<script src="https://..."></script>'></textarea>
+          </div>
+
+          <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:10px;padding:.8rem;font-size:.78rem;color:var(--p);margin-bottom:1rem">
+            💡 Your Adsterra JS SYNC script:<br>
+            <code style="font-family:monospace;font-size:.76rem;word-break:break-all">&lt;script src="https://pl28931766.effectivegatecpm.com/96/03/d1/9603d1582 4d063b570c47401a34dc835.js"&gt;&lt;/script&gt;</code><br><br>
+            Paste the full script tag from Adsterra into the box above, then enable ads.
+          </div>
+
+          <button class="btn btn-primary" onclick="saveAds()" style="width:100%;justify-content:center;padding:.8rem">💾 Save Ad Settings</button>
+        </div>
       </div>
 
     </main>
@@ -188,12 +250,12 @@ let adminKey = '';
 let logoBase64 = null, logoMime = null;
 
 async function doLogin(){
-  const k = document.getElementById('ak').value.trim();
+  const k=document.getElementById('ak').value.trim();
   if(!k) return showErr('Enter admin key');
-  adminKey = k;
+  adminKey=k;
   try{
-    const r = await fetch(`${API}/api/admin/stats?key=${k}`);
-    const d = await r.json();
+    const r=await fetch(`${API}/api/admin/stats?key=${k}`);
+    const d=await r.json();
     if(d.error||!r.ok){ showErr('Wrong admin key!'); adminKey=''; return; }
     document.getElementById('login-page').style.display='none';
     document.getElementById('main-page').style.display='block';
@@ -211,6 +273,8 @@ function showTab(t){
   if(t==='payments') loadPayments();
   if(t==='users') loadUsers();
   if(t==='site') loadSite();
+  if(t==='bonus') loadBonus();
+  if(t==='ads') loadAds();
 }
 
 function loadStats(d){
@@ -232,7 +296,7 @@ async function loadPayments(){
       <tbody>${pays.map(p=>`<tr>
         <td>${new Date(p.created_at).toLocaleDateString('en-GB')}</td>
         <td style="font-family:monospace;font-size:.75rem">${p.transaction_id}</td>
-        <td style="font-family:monospace">${p.bkash_number||'—'}</td>
+        <td style="font-family:monospace;font-size:.78rem">${p.bkash_number||'—'}</td>
         <td style="color:var(--g);font-weight:700">৳${p.amount}</td>
         <td>${p.storage_tb}TB × ${p.months}mo</td>
         <td><span class="badge badge-${p.status==='approved'?'a':p.status==='rejected'?'r':'p'}">${p.status}</span></td>
@@ -247,20 +311,9 @@ async function loadPayments(){
   }catch(e){ el.innerHTML=`<div style="color:var(--r);padding:1rem">${e.message}</div>`; }
 }
 
-async function approveP(txn){
-  if(!confirm('Approve?'))return;
-  await fetch(`${API}/api/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:adminKey,transactionId:txn})});
-  loadPayments(); refreshStats();
-}
-async function rejectP(txn){
-  if(!confirm('Reject?'))return;
-  await fetch(`${API}/api/admin/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:adminKey,transactionId:txn})});
-  loadPayments();
-}
-async function refreshStats(){
-  const d=await fetch(`${API}/api/admin/stats?key=${adminKey}`).then(r=>r.json());
-  loadStats(d);
-}
+async function approveP(txn){ if(!confirm('Approve?'))return; await fetch(`${API}/api/admin/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:adminKey,transactionId:txn})}); loadPayments(); refreshStats(); }
+async function rejectP(txn){ if(!confirm('Reject?'))return; await fetch(`${API}/api/admin/reject`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:adminKey,transactionId:txn})}); loadPayments(); }
+async function refreshStats(){ const d=await fetch(`${API}/api/admin/stats?key=${adminKey}`).then(r=>r.json()); loadStats(d); }
 
 async function loadUsers(){
   const el=document.getElementById('users-content');
@@ -274,10 +327,10 @@ async function loadUsers(){
       <div class="table-wrap"><table>
         <thead><tr><th>Name</th><th>Email</th><th>Plan</th><th>Storage</th><th>Expires</th><th>Joined</th><th>Folders</th></tr></thead>
         <tbody>${users.map(u=>{
-          const exp = u.plan_expires_at ? new Date(u.plan_expires_at) : null;
-          const daysLeft = exp ? Math.ceil((exp-now)/(1000*60*60*24)) : null;
-          const expClass = daysLeft !== null ? (daysLeft<=14?'expire-soon':'expire-ok') : '';
-          const expText = exp ? `${exp.toLocaleDateString('en-GB')} <span style="font-size:.72rem">(${daysLeft}d)</span>` : '—';
+          const exp=u.plan_expires_at?new Date(u.plan_expires_at):null;
+          const daysLeft=exp?Math.ceil((exp-now)/(1000*60*60*24)):null;
+          const expClass=daysLeft!==null?(daysLeft<=14?'expire-soon':'expire-ok'):'';
+          const expText=exp?`${exp.toLocaleDateString('en-GB')} <span style="font-size:.72rem">(${daysLeft}d)</span>`:'—';
           return `<tr>
             <td style="font-weight:600">${u.name}</td>
             <td style="color:var(--mu2);font-size:.78rem">${u.email}</td>
@@ -298,7 +351,7 @@ async function showFolders(userId,name,email){
     const folders=d.folders||[];
     const modal=document.createElement('div');
     modal.style.cssText='position:fixed;inset:0;background:rgba(7,7,18,.95);z-index:999;display:flex;align-items:center;justify-content:center;padding:1.5rem';
-    modal.innerHTML=`<div style="background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:1.9rem;width:100%;max-width:480px">
+    modal.innerHTML=`<div style="background:var(--s1);border:1px solid var(--bd);border-radius:20px;padding:1.9rem;width:100%;max-width:480px;max-height:80vh;overflow-y:auto">
       <h3 style="font-size:1rem;margin-bottom:.25rem">📁 ${name}</h3>
       <p style="color:var(--mu2);font-size:.78rem;margin-bottom:1rem">${email}</p>
       ${folders.length?`<div style="background:var(--s2);border-radius:10px;padding:.8rem;margin-bottom:1rem">
@@ -306,7 +359,7 @@ async function showFolders(userId,name,email){
           <span>📁 ${f.name}</span>
           <span style="color:var(--mu);font-size:.72rem">${new Date(f.created_at).toLocaleDateString('en-GB')}</span>
         </div>`).join('')}
-      </div>`:'<p style="color:var(--mu);font-size:.82rem;margin-bottom:1rem">No folders yet</p>'}
+      </div>`:'<p style="color:var(--mu);font-size:.82rem;margin-bottom:1rem">No folders</p>'}
       <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:9px;padding:.7rem;font-size:.75rem;color:var(--y);margin-bottom:1rem">
         ⚠️ Passwords are encrypted — only the user knows them.
       </div>
@@ -320,40 +373,27 @@ async function showFolders(userId,name,email){
 async function loadSite(){
   try{
     const r=await fetch(`${API}/api/admin/config?key=${adminKey}`);
-    const d=await r.json();
-    const c=d.config||{};
+    const d=await r.json(); const c=d.config||{};
     document.getElementById('site-name').value=c.site_name||'CloudVault';
     document.getElementById('site-notice').value=c.notice||'';
     document.getElementById('site-free').value=c.free_storage_gb||100;
-    document.getElementById('site-price').value=c.price_per_tb||5;
+    document.getElementById('site-disc').value=c.discount_percent||0;
     document.getElementById('site-h1').value=c.hero_h1||'Your Files.';
     document.getElementById('site-h2').value=c.hero_h2||'Safe Forever.';
     document.getElementById('site-sub').value=c.hero_sub||'';
-    if(c.logo_base64){
-      document.getElementById('logo-prev-img').src=`data:${c.logo_mime||'image/png'};base64,${c.logo_base64}`;
-      document.getElementById('logo-prev-img').style.display='block';
-      document.getElementById('logo-placeholder').style.display='none';
-    }
+    if(c.logo_base64){ document.getElementById('logo-prev-img').src=`data:${c.logo_mime||'image/png'};base64,${c.logo_base64}`; document.getElementById('logo-prev-img').style.display='block'; document.getElementById('logo-placeholder').style.display='none'; }
     updatePrev();
-  }catch(e){
-    showSiteAlert('⚠️ Could not load config. Make sure site_config table exists in Supabase.','e');
-  }
+  }catch(e){ showSiteAlert('⚠️ Could not load config: '+e.message,'e'); }
 }
 
-function updatePrev(){
-  const n=document.getElementById('site-notice').value;
-  document.getElementById('notice-prev').textContent=n||'No notice set';
-}
+function updatePrev(){ document.getElementById('notice-prev').textContent=document.getElementById('site-notice').value||'No notice'; }
 
 function logoSelected(input){
-  const file=input.files[0];
-  if(!file) return;
+  const file=input.files[0]; if(!file) return;
   const reader=new FileReader();
   reader.onload=e=>{
     const dataUrl=e.target.result;
-    const base64=dataUrl.split(',')[1];
-    logoBase64=base64;
-    logoMime=file.type;
+    logoBase64=dataUrl.split(',')[1]; logoMime=file.type;
     document.getElementById('logo-prev-img').src=dataUrl;
     document.getElementById('logo-prev-img').style.display='block';
     document.getElementById('logo-placeholder').style.display='none';
@@ -362,14 +402,10 @@ function logoSelected(input){
 }
 
 async function uploadLogo(){
-  if(!logoBase64){ alert('Please select an image first'); return; }
+  if(!logoBase64){ alert('Select an image first'); return; }
   try{
-    const r=await fetch(`${API}/api/admin/logo`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({key:adminKey,imageBase64:logoBase64,mimeType:logoMime})
-    });
-    const d=await r.json();
-    if(!r.ok) throw new Error(d.error);
+    const r=await fetch(`${API}/api/admin/logo`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:adminKey,imageBase64:logoBase64,mimeType:logoMime})});
+    const d=await r.json(); if(!r.ok) throw new Error(d.error);
     showSiteAlert('✅ Logo saved!','s');
   }catch(e){ showSiteAlert('❌ '+e.message,'e'); }
 }
@@ -380,33 +416,71 @@ async function saveSite(){
     site_name:document.getElementById('site-name').value||'CloudVault',
     notice:document.getElementById('site-notice').value||'',
     free_storage_gb:parseInt(document.getElementById('site-free').value)||100,
-    price_per_tb:parseInt(document.getElementById('site-price').value)||5,
+    discount_percent:parseInt(document.getElementById('site-disc').value)||0,
     hero_h1:document.getElementById('site-h1').value||'Your Files.',
     hero_h2:document.getElementById('site-h2').value||'Safe Forever.',
     hero_sub:document.getElementById('site-sub').value||'',
   };
   try{
     const r=await fetch(`${API}/api/admin/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});
-    const d=await r.json();
-    if(!r.ok||d.error) throw new Error(d.error||'Failed');
-    showSiteAlert('✅ Saved! Refresh the main site to see changes.','s');
+    const d=await r.json(); if(!r.ok||d.error) throw new Error(d.error||'Failed');
+    showSiteAlert('✅ Saved! Refresh main site to see changes.','s');
   }catch(e){ showSiteAlert('❌ '+e.message,'e'); }
 }
 
-function showSiteAlert(msg,type){
-  const al=document.getElementById('site-al');
-  al.textContent=msg; al.className=`alert al-${type}`; al.style.display='block';
-  setTimeout(()=>al.style.display='none',4000);
+function showSiteAlert(msg,type){ const al=document.getElementById('site-al'); al.textContent=msg; al.className=`alert al-${type}`; al.style.display='block'; setTimeout(()=>al.style.display='none',4000); }
+
+async function loadBonus(){
+  try{
+    const d=await fetch(`${API}/api/admin/config?key=${adminKey}`).then(r=>r.json());
+    const c=d.config||{};
+    document.getElementById('bonus-enabled').checked=c.login_bonus_enabled||false;
+    document.getElementById('bonus-gb').value=c.login_bonus_gb||2;
+    document.getElementById('bonus-start').value=c.login_bonus_start||'';
+    document.getElementById('bonus-end').value=c.login_bonus_end||'';
+  }catch{}
 }
 
-function fmtSz(b){
-  if(!b)return'0 B';
-  if(b<1024)return b+' B';
-  if(b<1048576)return(b/1024).toFixed(1)+' KB';
-  if(b<1073741824)return(b/1048576).toFixed(1)+' MB';
-  if(b<1099511627776)return(b/1073741824).toFixed(2)+' GB';
-  return(b/1099511627776).toFixed(2)+' TB';
+async function saveBonus(){
+  const config={
+    key:adminKey,
+    login_bonus_enabled:document.getElementById('bonus-enabled').checked,
+    login_bonus_gb:parseInt(document.getElementById('bonus-gb').value)||2,
+    login_bonus_start:document.getElementById('bonus-start').value||null,
+    login_bonus_end:document.getElementById('bonus-end').value||null,
+  };
+  try{
+    const r=await fetch(`${API}/api/admin/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});
+    const d=await r.json(); if(!r.ok||d.error) throw new Error(d.error);
+    showAlert('bonus-al','✅ Bonus settings saved!','s');
+  }catch(e){ showAlert('bonus-al','❌ '+e.message,'e'); }
 }
+
+async function loadAds(){
+  try{
+    const d=await fetch(`${API}/api/admin/config?key=${adminKey}`).then(r=>r.json());
+    const c=d.config||{};
+    document.getElementById('ads-enabled').checked=c.ads_enabled||false;
+    document.getElementById('ads-script').value=c.ad_script||'';
+  }catch{}
+}
+
+async function saveAds(){
+  const config={
+    key:adminKey,
+    ads_enabled:document.getElementById('ads-enabled').checked,
+    ad_script:document.getElementById('ads-script').value||'',
+  };
+  try{
+    const r=await fetch(`${API}/api/admin/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});
+    const d=await r.json(); if(!r.ok||d.error) throw new Error(d.error);
+    showAlert('ads-al','✅ Ad settings saved! Reload site to see ads.','s');
+  }catch(e){ showAlert('ads-al','❌ '+e.message,'e'); }
+}
+
+function showAlert(id,msg,type){ const al=document.getElementById(id); al.textContent=msg; al.className=`alert al-${type}`; al.style.display='block'; setTimeout(()=>al.style.display='none',4000); }
+
+function fmtSz(b){ if(!b)return'0 B'; if(b<1024)return b+' B'; if(b<1048576)return(b/1024).toFixed(1)+' KB'; if(b<1073741824)return(b/1048576).toFixed(1)+' MB'; if(b<1099511627776)return(b/1073741824).toFixed(2)+' GB'; return(b/1099511627776).toFixed(2)+' TB'; }
 </script>
 </body>
 </html>
