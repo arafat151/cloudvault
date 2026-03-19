@@ -32,7 +32,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // Each chunk from browser = 45MB max
 const upload = multer({
   dest: '/tmp/cv_up/',
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: { fileSize: 15 * 1024 * 1024 } // 15MB max per chunk
 });
 
 ['cv_up','cv_zip','cv_asm'].forEach(d => {
@@ -168,7 +168,7 @@ app.get('/api/bonus-status', auth, async (req, res) => {
 // - This way disk never exceeds ~450MB regardless of file size
 // - Result: multiple ZIP parts in Telegram
 
-const ZIP_PART_SIZE = 380 * 1024 * 1024; // 380MB per ZIP part (safe for 512MB disk)
+const ZIP_PART_SIZE = 200 * 1024 * 1024; // 200MB per ZIP part - faster ZIP creation, less timeout
 
 app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => {
   let chunkPath = req.file?.path;
