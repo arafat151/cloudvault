@@ -217,26 +217,57 @@ tr:hover td{background:rgba(255,255,255,.02)}
       <div class="tab" id="tab-ads">
         <div class="page-title">📢 Ads Management</div>
         <div id="ads-al" class="alert"></div>
-        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.5rem;max-width:600px">
-          
-          <div class="toggle-row" style="margin-bottom:1rem">
-            <div><div class="toggle-label">Enable Ads</div><div class="toggle-sub">Turn ads on/off globally</div></div>
+        
+        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.5rem;max-width:680px;margin-bottom:1.2rem">
+          <div class="toggle-row" style="margin-bottom:1.2rem">
+            <div><div class="toggle-label">Enable Ads Globally</div><div class="toggle-sub">Master switch — turn all ads on/off</div></div>
             <label class="toggle"><input type="checkbox" id="ads-enabled"><span class="toggle-slider"></span></label>
           </div>
 
-          <div class="fg">
-            <label>Ad Script Code</label>
-            <div style="font-size:.75rem;color:var(--mu2);margin-bottom:.4rem">Paste your Adsterra or any ad network script here. It will be injected into the website when ads are enabled.</div>
-            <textarea class="inp" id="ads-script" style="min-height:120px;font-family:monospace;font-size:.78rem" placeholder='<script src="https://..."></script>'></textarea>
+          <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:.8rem;font-size:.78rem;color:var(--y);margin-bottom:1.2rem">
+            ⚠️ <strong>Adsterra github.io issue:</strong> Adsterra rejects github.io domains. Use <strong>Smartlink</strong> instead — it works on any domain.<br>
+            Your Smartlink: <code style="font-family:monospace;font-size:.75rem;word-break:break-all">https://www.effectivegatecpm.com/wy6k0ypcs0?key=66fe508af5299561dab21d9e5a7df7ba</code>
           </div>
 
-          <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:10px;padding:.8rem;font-size:.78rem;color:var(--p);margin-bottom:1rem">
-            💡 Your Adsterra JS SYNC script:<br>
-            <code style="font-family:monospace;font-size:.76rem;word-break:break-all">&lt;script src="https://pl28931766.effectivegatecpm.com/96/03/d1/9603d1582 4d063b570c47401a34dc835.js"&gt;&lt;/script&gt;</code><br><br>
-            Paste the full script tag from Adsterra into the box above, then enable ads.
+          <div style="display:grid;gap:1rem">
+            <div class="fg">
+              <label>🔲 Banner Ad (728×90 — shows in Upload tab)</label>
+              <div style="font-size:.72rem;color:var(--mu2);margin-bottom:.4rem">From Adsterra: Ad Unit → Banner → Copy "Place it anywhere in the page body" code</div>
+              <textarea class="inp" id="ads-banner" style="min-height:100px;font-family:monospace;font-size:.75rem" placeholder="Paste banner ad code here..."></textarea>
+            </div>
+
+            <div class="fg">
+              <label>📊 Social Bar Ad (sticky bottom bar)</label>
+              <div style="font-size:.72rem;color:var(--mu2);margin-bottom:.4rem">From Adsterra: Ad Unit → Social Bar → Copy code</div>
+              <textarea class="inp" id="ads-social" style="min-height:80px;font-family:monospace;font-size:.75rem" placeholder="Paste social bar ad code here..."></textarea>
+            </div>
+
+            <div class="fg">
+              <label>💥 Popunder Ad</label>
+              <div style="font-size:.72rem;color:var(--mu2);margin-bottom:.4rem">From Adsterra: Ad Unit → Popunder → Copy JS code</div>
+              <textarea class="inp" id="ads-popunder" style="min-height:80px;font-family:monospace;font-size:.75rem" placeholder="Paste popunder ad code here..."></textarea>
+            </div>
+
+            <div class="fg">
+              <label>🔗 Smartlink (fallback / redirect)</label>
+              <div style="font-size:.72rem;color:var(--mu2);margin-bottom:.4rem">Paste your Smartlink URL — will be used if other ads blocked</div>
+              <input class="inp" id="ads-smartlink" placeholder="https://www.effectivegatecpm.com/...">
+            </div>
           </div>
 
-          <button class="btn btn-primary" onclick="saveAds()" style="width:100%;justify-content:center;padding:.8rem">💾 Save Ad Settings</button>
+          <button class="btn btn-primary" onclick="saveAds()" style="width:100%;justify-content:center;padding:.8rem;margin-top:1rem">💾 Save Ad Settings</button>
+        </div>
+
+        <div style="background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:1.2rem;max-width:680px">
+          <div style="font-size:.85rem;font-weight:700;margin-bottom:.8rem">📝 Adsterra Setup Guide</div>
+          <div style="font-size:.78rem;color:var(--mu2);line-height:1.8">
+            <strong style="color:var(--tx)">1.</strong> Login to Adsterra → Publishers dashboard<br>
+            <strong style="color:var(--tx)">2.</strong> Add Website → Enter your domain<br>
+            <strong style="color:var(--tx)">3.</strong> If github.io is rejected → Use <strong style="color:var(--p)">Smartlinks</strong> page instead<br>
+            <strong style="color:var(--tx)">4.</strong> For each ad format: Create Ad Unit → Copy the code<br>
+            <strong style="color:var(--tx)">5.</strong> Paste each code in the boxes above → Save → Enable<br>
+            <strong style="color:var(--y)">Note:</strong> Some ad networks require domain verification first
+          </div>
         </div>
       </div>
 
@@ -461,20 +492,26 @@ async function loadAds(){
     const d=await fetch(`${API}/api/admin/config?key=${adminKey}`).then(r=>r.json());
     const c=d.config||{};
     document.getElementById('ads-enabled').checked=c.ads_enabled||false;
-    document.getElementById('ads-script').value=c.ad_script||'';
-  }catch{}
+    document.getElementById('ads-banner').value=c.ad_banner||'';
+    document.getElementById('ads-social').value=c.ad_social_bar||'';
+    document.getElementById('ads-popunder').value=c.ad_popunder||'';
+    document.getElementById('ads-smartlink').value=c.ad_smartlink||'';
+  }catch(e){ showAlert('ads-al','Could not load: '+e.message,'e'); }
 }
 
 async function saveAds(){
   const config={
     key:adminKey,
     ads_enabled:document.getElementById('ads-enabled').checked,
-    ad_script:document.getElementById('ads-script').value||'',
+    ad_banner:document.getElementById('ads-banner').value||'',
+    ad_social_bar:document.getElementById('ads-social').value||'',
+    ad_popunder:document.getElementById('ads-popunder').value||'',
+    ad_smartlink:document.getElementById('ads-smartlink').value||'',
   };
   try{
     const r=await fetch(`${API}/api/admin/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(config)});
     const d=await r.json(); if(!r.ok||d.error) throw new Error(d.error);
-    showAlert('ads-al','✅ Ad settings saved! Reload site to see ads.','s');
+    showAlert('ads-al','✅ Ad settings saved! Reload the main site to see ads.','s');
   }catch(e){ showAlert('ads-al','❌ '+e.message,'e'); }
 }
 

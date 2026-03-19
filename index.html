@@ -425,11 +425,13 @@ label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bott
           <label>Upload to Folder</label>
           <select class="inp" id="uf"><option value="">Select a folder...</option></select>
         </div>
+        <!-- AD BANNER SLOT -->
+        <div id="ad-banner-slot" style="display:none;margin-bottom:1rem;text-align:center;border-radius:10px;overflow:hidden"></div>
         <div class="uz" id="uz">
           <input type="file" id="fi" multiple onchange="filesSelected(this)">
           <div class="uz-ic">📤</div>
           <div class="uz-t">Drop files here or click to browse</div>
-          <div class="uz-s">Multiple files supported · Any size · Files merged into one ZIP</div>
+          <div class="uz-s">Multiple files supported · Any size · Direct to cloud — no size limit</div>
           <div class="uz-f" id="uz-f"></div>
         </div>
         <div class="pbox" id="pbox">
@@ -562,7 +564,7 @@ label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bott
 
 <script>
 const API = 'https://cloudvault-e5wb.onrender.com';
-const CHUNK_SIZE = 15 * 1024 * 1024; // 15MB chunks to server, server assembles then ZIPs
+const CHUNK_SIZE = 45 * 1024 * 1024; // 45MB chunks - direct to Telegram, no assembly
 
 let user = null, token = null;
 let curFolderId = null, curFolderName = null;
@@ -643,16 +645,34 @@ async function loadConfig(){
     const nn = document.getElementById('ngd-num');
     if(nn && d.nagadNumber) nn.textContent = d.nagadNumber;
 
-    // Ads
-    if(d.adScript && d.adsEnabled){
-      const ac = document.getElementById('ad-container');
-      ac.innerHTML = d.adScript;
-      const scripts = ac.querySelectorAll('script');
-      scripts.forEach(s=>{
-        const ns=document.createElement('script');
-        if(s.src) ns.src=s.src; else ns.textContent=s.textContent;
-        document.body.appendChild(ns);
-      });
+    // Ads - inject each ad slot
+    if(d.adsEnabled){
+      function injectAd(containerId, code){
+        if(!code) return;
+        const el = document.getElementById(containerId);
+        if(!el) return;
+        el.innerHTML = code;
+        el.querySelectorAll('script').forEach(s=>{
+          const ns = document.createElement('script');
+          if(s.src){ ns.src=s.src; ns.async=true; } else { ns.textContent=s.textContent; }
+          document.body.appendChild(ns);
+        });
+      }
+      // Banner ad - show in upload area
+      if(d.adBanner){
+        const bannerSlot = document.getElementById('ad-banner-slot');
+        if(bannerSlot){ bannerSlot.innerHTML = d.adBanner; bannerSlot.style.display='block'; }
+      }
+      // Social bar
+      injectAd('ad-social-bar-container', d.adSocialBar);
+      // Popunder
+      injectAd('ad-popunder-container', d.adPopunder);
+      // General ad script
+      if(d.adScript){
+        const s = document.createElement('script');
+        s.src = d.adScript.match(/src="([^"]+)"/)?.[1];
+        if(s.src) document.body.appendChild(s);
+      }
     }
 
   }catch(e){ console.log('Config error:', e.message); }
@@ -1070,8 +1090,11 @@ async function uploadSingleFile(file, folderId, fileIdx, totalFiles){
 
 // ===== DOWNLOAD =====
 async function startDownload(fileId, fileName){
-  const pw=currentFolderPassword||prompt('Enter folder password to download:');
-  if(pw===null) return;
+  let pw = currentFolderPassword;
+  if(!pw){
+    pw = prompt('Enter folder password to download (or leave empty if no password):');
+    if(pw === null) return;
+  }
   const dlContent=document.getElementById('dl-content');
   dlContent.innerHTML='<div style="text-align:center;padding:1.5rem"><span class="spin">⏳</span> Preparing...</div>';
   document.getElementById('mod-dl').classList.add('show');
@@ -1180,5 +1203,9 @@ if(uz){
 }
 ['mod-folder','mod-rename','mod-dl'].forEach(id=>{ document.getElementById(id)?.addEventListener('click',function(e){ if(e.target===this) closeModal(id); }); });
 </script>
+<!-- ADSTERRA SOCIAL BAR - loads from admin config -->
+<div id="ad-social-bar-container"></div>
+<!-- ADSTERRA POPUNDER - loads from admin config -->
+<div id="ad-popunder-container"></div>
 </body>
 </html>
