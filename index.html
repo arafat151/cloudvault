@@ -747,6 +747,7 @@ async function doLogin(){
     token=d.token; user=d.user;
     localStorage.setItem('cv_token',token);
     localStorage.setItem('cv_user',JSON.stringify(user));
+    askNotificationPermission();
     showPage('dash');
   }catch(e){sa('li-al',e.message,'e');}
   finally{btn.disabled=false; btn.textContent='Sign In';}
@@ -1059,10 +1060,8 @@ async function startUpload(){
   btn.disabled=false; btn.textContent='🚀 Upload Files';
   isUploading=false; uploadQueue=[];
   document.getElementById('uz-f').textContent='';
-  // Browser notification
-  if('Notification' in window && Notification.permission === 'granted'){
-    new Notification('CloudVault', { body: 'Upload complete! All files saved.', icon: 'https://arafat151.github.io/cloudvault/favicon.ico' });
-  }
+  document.title = 'CloudVault — Free Unlimited Storage';
+  sendNotification('CloudVault ✅', 'Upload complete! All files saved to your folder.');
   loadDash();
 }
 
@@ -1086,6 +1085,7 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
     }
     document.getElementById('pp').textContent = pct + '%';
     document.getElementById('pf').style.width = pct + '%';
+    document.title = `⬆️ ${pct}% — Uploading...`;
 
     let lastErr = null;
     const maxRetry = isLast ? 5 : 3;
@@ -1425,6 +1425,20 @@ function fIcon(n){ const e=(n||'').split('.').pop().toLowerCase(); const m={pdf:
 function sa(id,msg,type){ const el=document.getElementById(id); if(!el)return; el.textContent=msg; el.className=`alert al-${type} show`; setTimeout(()=>el.className='alert',5000); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// Browser notification
+async function askNotificationPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'default'){
+    await Notification.requestPermission();
+  }
+}
+function sendNotification(title, body){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'granted'){
+    try { new Notification(title, { body, icon: '/favicon.ico' }); } catch{}
+  }
+}
 
 // Drag & drop
 const uz=document.getElementById('uz');
