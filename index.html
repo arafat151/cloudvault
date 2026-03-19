@@ -1073,7 +1073,8 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
     document.getElementById('pf').style.width = pct + '%';
 
     let lastErr = null;
-    for(let retry=0; retry<3; retry++){
+    const maxRetry = (i === totalChunks - 1) ? 5 : 3; // more retries for last chunk (ZIP creation)
+    for(let retry=0; retry<maxRetry; retry++){
       try{
         const fd = new FormData();
         fd.append('fileId', fileId);
@@ -1084,18 +1085,27 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
         fd.append('fileSize', file.size);
         fd.append('folderPassword', folderPw);
         fd.append('chunk', chunk, 'chunk');
+
+        // Last chunk needs longer timeout (server creates ZIP + uploads to Telegram)
+        const ctrl = new AbortController();
+        const timeoutMs = (i === totalChunks - 1) ? 600000 : 120000; // 10min for last, 2min for others
+        const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
         const r = await fetch(`${API}/api/chunk/upload`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${token}` },
-          body: fd
+          body: fd,
+          signal: ctrl.signal
         });
+        clearTimeout(timer);
         if(!r.ok){ const e = await r.json(); throw new Error(e.error || 'Upload failed'); }
         lastErr = null; break;
       }catch(e){
         lastErr = e;
-        if(retry < 2){
-          document.getElementById('pm').textContent = `Retrying chunk ${i+1}...`;
-          await sleep(3000);
+        if(retry < maxRetry - 1){
+          const waitSec = (i === totalChunks - 1) ? 8 : 3;
+          document.getElementById('pm').textContent = `Retrying... (${retry+1}/${maxRetry})`;
+          await sleep(waitSec * 1000);
         }
       }
     }
@@ -1300,7 +1310,17 @@ function toggleSel(id,cb){ if(cb.checked) selFiles.add(id); else selFiles.delete
 function selectAll(){ allFiles.forEach(f=>{ selFiles.add(f.id); const cb=document.querySelector(`.fr[data-id="${f.id}"] .chk`); if(cb) cb.checked=true; }); updateSelBar(); }
 function clearSelection(){ selFiles.clear(); document.querySelectorAll('.chk').forEach(c=>c.checked=false); updateSelBar(); }
 function updateSelBar(){ const bar=document.getElementById('sel-bar'); if(selFiles.size>0){ bar.classList.add('show'); document.getElementById('sel-count').textContent=`${selFiles.size} selected`; } else bar.classList.remove('show'); }
-async function downloadSelected(){ const pw=currentFolderPassword||prompt('Folder password:'); if(!pw) return; for(const id of selFiles){ await startDownload(id,'file'); await sleep(500); } clearSelection(); }
+async function downloadSelected(){
+  const pw=currentFolderPassword||prompt('Folder password:');
+  if(!pw) return;
+  for(const id of selFiles){
+    const fileEl = document.querySelector(`.fr[data-id="${id}"]`);
+    const fileName = fileEl?.dataset?.name || 'file';
+    await startDownload(id, fileName);
+    await sleep(800);
+  }
+  clearSelection();
+}
 async function deleteSelected(){ if(!confirm(`Delete ${selFiles.size} file(s)?`)) return; for(const id of selFiles){ try{ await aDel(`/api/files/${id}`); }catch{} } clearSelection(); loadDrive(); }
 async function deleteFile(id){ if(!confirm('Delete this file?')) return; try{ await aDel(`/api/files/${id}`); loadDrive(); }catch(e){ alert('Error: '+e.message); } }
 
