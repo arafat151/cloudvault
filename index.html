@@ -1012,6 +1012,8 @@ async function startUpload(){
   const folderId=v('uf');
   if(!folderId) return alert('Please select a folder');
   if(!uploadQueue.length) return alert('Please select files');
+  // Sort: small files first for faster visual progress
+  uploadQueue = [...uploadQueue].sort((a, b) => a.size - b.size);
   if(!unlocked.has(folderId)){
     pendingFolderId=folderId;
     const opt=document.getElementById('uf').selectedOptions[0];
@@ -1032,17 +1034,21 @@ async function startUpload(){
     <span class="uq-status uq-wait" id="uqs-${i}">Waiting...</span>
   </div>`).join('');
 
-  for(let i=0; i<uploadQueue.length; i++){
-    const file=uploadQueue[i];
-    document.getElementById(`uqs-${i}`).textContent='Uploading...';
-    document.getElementById(`uqs-${i}`).className='uq-status uq-ing';
+  // Sort: small files first for faster progress, large files last
+  const sortedQueue = uploadQueue.map((f,i)=>({file:f, origIdx:i}))
+    .sort((a,b) => a.file.size - b.file.size);
+
+  let doneCount = 0;
+  for(const {file, origIdx} of sortedQueue){
+    document.getElementById(`uqs-${origIdx}`).textContent='Uploading...';
+    document.getElementById(`uqs-${origIdx}`).className='uq-status uq-ing';
     try{
-      await doUploadFile(file, folderId, i, uploadQueue.length);
-      document.getElementById(`uqs-${i}`).textContent='✅ Done';
-      document.getElementById(`uqs-${i}`).className='uq-status uq-done';
+      await doUploadFile(file, folderId, origIdx, uploadQueue.length, ()=>{ doneCount++; });
+      document.getElementById(`uqs-${origIdx}`).textContent='✅ Done';
+      document.getElementById(`uqs-${origIdx}`).className='uq-status uq-done';
     }catch(e){
-      document.getElementById(`uqs-${i}`).textContent='❌ '+e.message.slice(0,30);
-      document.getElementById(`uqs-${i}`).className='uq-status uq-err';
+      document.getElementById(`uqs-${origIdx}`).textContent='❌ '+e.message.slice(0,40);
+      document.getElementById(`uqs-${origIdx}`).className='uq-status uq-err';
     }
   }
   document.getElementById('rbox').classList.add('show');
@@ -1062,18 +1068,19 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
   for(let i=0; i<totalChunks; i++){
     const start = i * CHUNK_SIZE;
     const chunk = file.slice(start, start + CHUNK_SIZE);
-    const pct = Math.min(Math.round(((fileIdx + (i+1)/totalChunks) / totalFiles) * 100), 99);
+    const isLast = (i === totalChunks - 1);
+    const pct = Math.min(Math.round(((fileIdx + (i+1)/totalChunks) / totalFiles) * 100), 98);
 
-    if(i === totalChunks - 1){
-      document.getElementById('pm').textContent = `${file.name}: Creating ZIP & uploading to cloud...`;
+    if(isLast && totalChunks > 1){
+      document.getElementById('pm').textContent = `${file.name}: Creating ZIP & uploading...`;
     } else {
-      document.getElementById('pm').textContent = `${file.name}: chunk ${i+1}/${totalChunks}`;
+      document.getElementById('pm').textContent = `${file.name}: ${i+1}/${totalChunks}`;
     }
     document.getElementById('pp').textContent = pct + '%';
     document.getElementById('pf').style.width = pct + '%';
 
     let lastErr = null;
-    const maxRetry = (i === totalChunks - 1) ? 5 : 3; // more retries for last chunk (ZIP creation)
+    const maxRetry = isLast ? 5 : 3;
     for(let retry=0; retry<maxRetry; retry++){
       try{
         const fd = new FormData();
@@ -1086,9 +1093,8 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
         fd.append('folderPassword', folderPw);
         fd.append('chunk', chunk, 'chunk');
 
-        // Last chunk needs longer timeout (server creates ZIP + uploads to Telegram)
         const ctrl = new AbortController();
-        const timeoutMs = (i === totalChunks - 1) ? 600000 : 120000; // 10min for last, 2min for others
+        const timeoutMs = isLast ? 900000 : 120000;
         const timer = setTimeout(() => ctrl.abort(), timeoutMs);
 
         const r = await fetch(`${API}/api/chunk/upload`, {
@@ -1099,13 +1105,19 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
         });
         clearTimeout(timer);
         if(!r.ok){ const e = await r.json(); throw new Error(e.error || 'Upload failed'); }
+        const result = await r.json();
+
+        // Server processing ZIP in background - poll until done
+        if(isLast && result.processing){
+          await pollUntilDone(fileId, file.name);
+        }
+
         lastErr = null; break;
       }catch(e){
         lastErr = e;
         if(retry < maxRetry - 1){
-          const waitSec = (i === totalChunks - 1) ? 8 : 3;
-          document.getElementById('pm').textContent = `Retrying... (${retry+1}/${maxRetry})`;
-          await sleep(waitSec * 1000);
+          document.getElementById('pm').textContent = `Retrying ${file.name}... (${retry+2}/${maxRetry})`;
+          await sleep(isLast ? 10000 : 3000);
         }
       }
     }
@@ -1114,6 +1126,25 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
   document.getElementById('pp').textContent = '100%';
   document.getElementById('pf').style.width = '100%';
 }
+
+async function pollUntilDone(fileId, fileName){
+  const maxWait = 20 * 60 * 1000; // 20 min
+  const start = Date.now();
+  let dots = 0;
+  while(Date.now() - start < maxWait){
+    await sleep(5000);
+    dots = (dots % 3) + 1;
+    const elapsed = Math.round((Date.now() - start) / 1000);
+    document.getElementById('pm').textContent = `${fileName}: Uploading to cloud${'.'.repeat(dots)} ${elapsed}s`;
+    try{
+      const r = await fetch(`${API}/api/file-status/${fileId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if(r.ok){ const d = await r.json(); if(d.exists) return; }
+    }catch{}
+  }
+}
+
 
 // Upload multiple files as one ZIP (or multiple ZIPs if >1.85GB)
 async function uploadFilesAsZip(files, folderId, fileIdx, totalBatches){
