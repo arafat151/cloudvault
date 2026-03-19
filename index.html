@@ -566,7 +566,8 @@ label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bott
 
 <script>
 const API = 'https://cloudvault-e5wb.onrender.com';
-const TG_MAX = 1850 * 1024 * 1024; // 1.85GB max per Telegram file (ZIP part size)
+const CHUNK_SIZE = 45 * 1024 * 1024; // 45MB per chunk sent to server
+const TG_MAX = 1850 * 1024 * 1024; // reference only
 
 let user = null, token = null;
 let curFolderId = null, curFolderName = null;
