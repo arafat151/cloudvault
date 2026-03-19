@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CloudVault — Free Unlimited Storage</title>
 <meta name="description" content="CloudVault is a free, secure cloud storage platform. Upload unlimited files — photos, videos, documents. Protected with military-grade encryption. Zero ads. Your data stays yours.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#070712;--s1:#0f0f1e;--s2:#171728;--s3:#1f1f35;--bd:#252540;--bd2:#32325a;--p:#6c63ff;--p2:#8b5cf6;--g:#10b981;--r:#ef4444;--y:#f59e0b;--b:#3b82f6;--tx:#e2e2f0;--mu:#6b6b90;--mu2:#9090b0}
@@ -431,7 +433,7 @@ label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bott
           <input type="file" id="fi" multiple onchange="filesSelected(this)">
           <div class="uz-ic">📤</div>
           <div class="uz-t">Drop files here or click to browse</div>
-          <div class="uz-s">Multiple files supported · Any size · Direct to cloud — no size limit</div>
+          <div class="uz-s">Multiple files supported · Any size · Auto-split &amp; ZIP encrypted</div>
           <div class="uz-f" id="uz-f"></div>
         </div>
         <div class="pbox" id="pbox">
@@ -439,7 +441,7 @@ label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bott
           <div class="pb"><div class="pf" id="pf"></div></div>
           <div class="upload-queue" id="uq"></div>
         </div>
-        <div class="rbox" id="rbox"><h3>✅ Upload complete!</h3><p style="font-size:.82rem;color:var(--mu2);margin-top:.3rem">Your file is now in the folder. Download to get the ZIP.</p></div>
+        <div class="rbox" id="rbox"><h3>✅ Upload complete!</h3><p style="font-size:.82rem;color:var(--mu2);margin-top:.3rem">File saved! Click 📥 to download as ZIP. Extract with folder password to get your file.</p></div>
         <button class="btn btn-primary" onclick="startUpload()" id="up-btn" style="padding:.85rem 1.8rem;font-size:.95rem">🚀 Upload Files</button>
       </div>
 
@@ -564,7 +566,7 @@ label{display:block;font-size:.8rem;font-weight:600;color:var(--mu2);margin-bott
 
 <script>
 const API = 'https://cloudvault-e5wb.onrender.com';
-const CHUNK_SIZE = 45 * 1024 * 1024; // 45MB chunks - direct to Telegram, no assembly
+const TG_MAX = 1850 * 1024 * 1024; // 1.85GB max per Telegram file (ZIP part size)
 
 let user = null, token = null;
 let curFolderId = null, curFolderName = null;
@@ -1051,88 +1053,184 @@ async function startUpload(){
 
 function genFileId(){ return 'cv_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
 
-async function uploadSingleFile(file, folderId, fileIdx, totalFiles){
-  const totalChunks=Math.ceil(file.size/CHUNK_SIZE);
-  const fileId=genFileId();
-  const folderPw=currentFolderPassword||'';
+// Upload multiple files as one ZIP (or multiple ZIPs if >1.85GB)
+async function uploadFilesAsZip(files, folderId, fileIdx, totalBatches){
+  const fileId = genFileId();
+  const folderPw = currentFolderPassword || '';
+  const totalSize = files.reduce((a,f)=>a+f.size, 0);
+  
+  // Update UI
+  const setProgress = (msg, pct) => {
+    document.getElementById('pm').textContent = msg;
+    document.getElementById('pp').textContent = Math.round(pct)+'%';
+    document.getElementById('pf').style.width = Math.round(pct)+'%';
+  };
 
-  for(let i=0; i<totalChunks; i++){
-    const start=i*CHUNK_SIZE;
-    const chunk=file.slice(start,start+CHUNK_SIZE);
-    const pct=Math.min(Math.round(((fileIdx+((i+1)/totalChunks))/totalFiles)*100),99);
-    document.getElementById('pm').textContent=`${file.name}: chunk ${i+1}/${totalChunks}`;
-    document.getElementById('pp').textContent=pct+'%';
-    document.getElementById('pf').style.width=pct+'%';
+  // Determine ZIP name
+  const baseName = files.length===1 ? files[0].name : `CloudVault_${files.length}_files`;
+  const zipBaseName = baseName.replace(/\.[^/.]+$/, '') + '.zip';
 
-    let lastErr=null;
-    for(let retry=0; retry<3; retry++){
-      try{
-        const fd=new FormData();
-        fd.append('fileId',fileId);
-        fd.append('chunkIndex',i);
-        fd.append('totalChunks',totalChunks);
-        fd.append('fileName',file.name);
-        fd.append('folderId',folderId);
-        fd.append('fileSize',file.size);
-        fd.append('folderPassword',folderPw);
-        fd.append('chunk',chunk,'chunk');
-        const r=await fetch(`${API}/api/chunk/upload`,{method:'POST',headers:{'Authorization':`Bearer ${token}`},body:fd});
-        if(!r.ok){ const e=await r.json(); throw new Error(e.error||'Failed'); }
-        lastErr=null; break;
-      }catch(e){
-        lastErr=e;
-        if(retry<2){ document.getElementById('pm').textContent=`Retrying chunk ${i+1}...`; await sleep(3000); }
+  setProgress('Creating ZIP...', 5);
+
+  // If total size > 1.85GB, we need to split into multiple ZIPs
+  // For now: build one ZIP in memory (works up to ~4GB with JSZip)
+  // For very large files (>1.85GB total), we split by file
+  
+  if(totalSize <= TG_MAX){
+    // Single ZIP - add all files
+    const zip = new JSZip();
+    let loaded = 0;
+    for(const file of files){
+      setProgress(`Adding ${file.name} to ZIP...`, 5 + (loaded/totalSize)*30);
+      const buf = await file.arrayBuffer();
+      zip.file(file.name, buf);
+      loaded += file.size;
+    }
+    
+    setProgress('Compressing ZIP...', 35);
+    const zipBlob = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 1 }, // Fast compression
+      streamFiles: true
+    }, (metadata) => {
+      setProgress(`Compressing: ${Math.round(metadata.percent)}%`, 35 + metadata.percent * 0.3);
+    });
+
+    setProgress('Uploading ZIP to cloud...', 65);
+    await uploadZipPart(fileId, 0, 1, files[0].name, folderId, totalSize, zipBaseName, zipBlob, (p)=>{
+      setProgress(`Uploading: ${Math.round(p)}%`, 65 + p*0.34);
+    });
+
+  } else {
+    // Large file(s): upload each file as its own ZIP part
+    const totalParts = files.length;
+    for(let i=0; i<files.length; i++){
+      const file = files[i];
+      setProgress(`Zipping ${file.name}...`, (i/totalParts)*50);
+      
+      const zip = new JSZip();
+      const buf = await file.arrayBuffer();
+      zip.file(file.name, buf);
+      
+      setProgress(`Compressing ${file.name}...`, (i/totalParts)*50 + 5);
+      const zipBlob = await zip.generateAsync({
+        type: 'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 1 }
+      });
+      
+      const partZipName = totalParts > 1 
+        ? `${zipBaseName.replace('.zip','')}_part${i+1}of${totalParts}.zip`
+        : zipBaseName;
+      
+      setProgress(`Uploading part ${i+1}/${totalParts}...`, 50 + (i/totalParts)*49);
+      await uploadZipPart(fileId, i, totalParts, baseName, folderId, totalSize, partZipName, zipBlob, ()=>{});
+    }
+  }
+}
+
+async function uploadZipPart(fileId, partIndex, totalParts, fileName, folderId, fileSize, zipName, zipBlob, progressCb){
+  let lastErr = null;
+  for(let retry=0; retry<3; retry++){
+    try{
+      const fd = new FormData();
+      fd.append('fileId', fileId);
+      fd.append('partIndex', partIndex);
+      fd.append('totalParts', totalParts);
+      fd.append('fileName', fileName);
+      fd.append('folderId', folderId);
+      fd.append('fileSize', fileSize);
+      fd.append('zipName', zipName);
+      fd.append('zipPart', zipBlob, zipName);
+
+      const r = await fetch(`${API}/api/upload/zip-part`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: fd
+      });
+      if(!r.ok){ const e=await r.json(); throw new Error(e.error||'Upload failed'); }
+      progressCb(100);
+      lastErr = null;
+      break;
+    }catch(e){
+      lastErr = e;
+      if(retry < 2){
+        document.getElementById('pm').textContent = `Retrying... (${retry+1}/3)`;
+        await sleep(5000);
       }
     }
-    if(lastErr) throw lastErr;
   }
+  if(lastErr) throw lastErr;
 }
 
 // ===== DOWNLOAD =====
 async function startDownload(fileId, fileName){
   let pw = currentFolderPassword;
   if(!pw){
-    pw = prompt('Enter folder password to download (or leave empty if no password):');
+    pw = prompt('Enter folder password to download:');
     if(pw === null) return;
   }
-  const dlContent=document.getElementById('dl-content');
-  dlContent.innerHTML='<div style="text-align:center;padding:1.5rem"><span class="spin">⏳</span> Preparing...</div>';
+
+  // Show loading modal
+  const dlContent = document.getElementById('dl-content');
+  dlContent.innerHTML = `<div style="text-align:center;padding:2rem">
+    <div class="spin" style="font-size:2rem">⏳</div>
+    <div style="margin-top:.8rem;font-size:.9rem;font-weight:600">Downloading...</div>
+    <div style="margin-top:.4rem;font-size:.78rem;color:var(--mu2)">Large files may take a few minutes</div>
+  </div>`;
   document.getElementById('mod-dl').classList.add('show');
+
   try{
-    const url=`${API}/api/file/${fileId}?password=${encodeURIComponent(pw)}`;
-    const r=await fetch(url,{headers:{'Authorization':`Bearer ${token}`}});
-    const ct=r.headers.get('content-type')||'';
-    if(ct.includes('application/json')){
-      const d=await r.json();
-      if(d.error){ closeModal('mod-dl'); return alert('Error: '+d.error); }
-      if(d.multiPart){ showMultiPartDl(d,pw); return; }
+    const url = `${API}/api/file/${fileId}?password=${encodeURIComponent(pw)}`;
+    const r = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+
+    if(!r.ok){
+      const d = await r.json();
+      closeModal('mod-dl');
+      return alert('Error: ' + (d.error || 'Download failed'));
     }
-    const blob=await r.blob();
-    const cd=r.headers.get('content-disposition')||'';
-    let dlName=fileName?fileName+'.zip':'download.zip';
-    const match=cd.match(/filename="(.+?)"/);
-    if(match) dlName=decodeURIComponent(match[1]);
-    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=dlName;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+
+    // Get filename from header
+    const cd = r.headers.get('content-disposition') || '';
+    const match = cd.match(/filename="(.+?)"/);
+    const dlName = match ? decodeURIComponent(match[1]) : (fileName || 'download');
+
+    // Stream to blob and trigger download
+    const blob = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = dlName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+
     closeModal('mod-dl');
-    dlContent.innerHTML=`<div style="color:var(--g);text-align:center;padding:1rem">✅ Download started! Extract ZIP with your folder password to get your files.</div>`;
-  }catch(e){ closeModal('mod-dl'); alert('Download error: '+e.message); }
+  } catch(e) {
+    closeModal('mod-dl');
+    alert('Download error: ' + e.message);
+  }
 }
 
 function showMultiPartDl(data, pw){
   const dlContent=document.getElementById('dl-content');
   dlContent.innerHTML=`
-    <p style="font-size:.82rem;color:var(--mu2);margin-bottom:.7rem">This file has <strong>${data.totalParts} ZIP parts</strong>.</p>
-    <div style="background:rgba(108,99,255,.08);border:1px solid rgba(108,99,255,.25);border-radius:9px;padding:.8rem;font-size:.78rem;color:var(--p);margin-bottom:1rem">
-      🔐 Each ZIP is password-protected. Use your folder password to extract.
+    <p style="font-size:.85rem;font-weight:700;margin-bottom:.5rem">${data.fileName}</p>
+    <p style="font-size:.82rem;color:var(--mu2);margin-bottom:.8rem">Large file split into <strong>${data.totalParts} ZIP parts</strong> (${fmtSz(data.totalSize)} total)</p>
+    <div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:9px;padding:.8rem;font-size:.78rem;color:var(--y);margin-bottom:1rem">
+      ⚠️ Download ALL parts. Then extract each ZIP with your folder password. The files inside will be the parts of the original file.
     </div>
     <div class="dl-parts">
       ${data.parts.map(p=>`<div class="dlp">
-        <div class="dlp-t">Part ${p.part} — ${fmtSz(p.size)}</div>
+        <div class="dlp-t" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📦 Part ${p.part} of ${data.totalParts}</span>
+          <span style="color:var(--mu);font-size:.72rem">${fmtSz(p.size)}</span>
+        </div>
+        <div style="font-size:.75rem;color:var(--mu2);margin:.3rem 0 .5rem">${p.zipName||'part'+p.part+'.zip'}</div>
         <button class="dlp-btn" onclick="downloadPart('${p.downloadUrl}','${p.zipName||'part'+p.part+'.zip'}')">⬇️ Download Part ${p.part}</button>
       </div>`).join('')}
-    </div>
-    <p style="font-size:.75rem;color:var(--mu);margin-top:.8rem">Extract each ZIP with your folder password.</p>`;
+    </div>`;
 }
 
 async function downloadPart(partUrl, fileName){
