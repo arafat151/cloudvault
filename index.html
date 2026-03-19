@@ -1036,7 +1036,7 @@ async function startUpload(){
     document.getElementById(`uqs-${i}`).textContent='Uploading...';
     document.getElementById(`uqs-${i}`).className='uq-status uq-ing';
     try{
-      await uploadSingleFile(file, folderId, i, uploadQueue.length);
+      await doUploadFile(file, folderId, i, uploadQueue.length);
       document.getElementById(`uqs-${i}`).textContent='✅ Done';
       document.getElementById(`uqs-${i}`).className='uq-status uq-done';
     }catch(e){
@@ -1052,6 +1052,57 @@ async function startUpload(){
 }
 
 function genFileId(){ return 'cv_'+Date.now()+'_'+Math.random().toString(36).slice(2,8); }
+
+async function doUploadFile(file, folderId, fileIdx, totalFiles){
+  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const fileId = genFileId();
+  const folderPw = currentFolderPassword || '';
+
+  for(let i=0; i<totalChunks; i++){
+    const start = i * CHUNK_SIZE;
+    const chunk = file.slice(start, start + CHUNK_SIZE);
+    const pct = Math.min(Math.round(((fileIdx + (i+1)/totalChunks) / totalFiles) * 100), 99);
+
+    if(i === totalChunks - 1){
+      document.getElementById('pm').textContent = `${file.name}: Creating ZIP & uploading to cloud...`;
+    } else {
+      document.getElementById('pm').textContent = `${file.name}: chunk ${i+1}/${totalChunks}`;
+    }
+    document.getElementById('pp').textContent = pct + '%';
+    document.getElementById('pf').style.width = pct + '%';
+
+    let lastErr = null;
+    for(let retry=0; retry<3; retry++){
+      try{
+        const fd = new FormData();
+        fd.append('fileId', fileId);
+        fd.append('chunkIndex', i);
+        fd.append('totalChunks', totalChunks);
+        fd.append('fileName', file.name);
+        fd.append('folderId', folderId);
+        fd.append('fileSize', file.size);
+        fd.append('folderPassword', folderPw);
+        fd.append('chunk', chunk, 'chunk');
+        const r = await fetch(`${API}/api/chunk/upload`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: fd
+        });
+        if(!r.ok){ const e = await r.json(); throw new Error(e.error || 'Upload failed'); }
+        lastErr = null; break;
+      }catch(e){
+        lastErr = e;
+        if(retry < 2){
+          document.getElementById('pm').textContent = `Retrying chunk ${i+1}...`;
+          await sleep(3000);
+        }
+      }
+    }
+    if(lastErr) throw lastErr;
+  }
+  document.getElementById('pp').textContent = '100%';
+  document.getElementById('pf').style.width = '100%';
+}
 
 // Upload multiple files as one ZIP (or multiple ZIPs if >1.85GB)
 async function uploadFilesAsZip(files, folderId, fileIdx, totalBatches){
