@@ -235,44 +235,41 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
       console.log(`[${fileId}] Part ${partNum + 1} uploaded to Telegram ✓`);
     }
 
-    // If last chunk - start background ZIP+upload, return immediately
+    // If last chunk - finalize everything synchronously then respond
     if (isLast) {
       const { data: folder } = await supabase.from('folders').select('id')
         .eq('id', folderId).eq('user_id', req.user.userId).single();
       if (!folder) throw new Error('Folder not found');
 
-      // Respond immediately so connection doesn't timeout
-      res.json({ done: false, processing: true, received: idx + 1, total, message: 'Processing final ZIP...' });
+      // Wait a moment for DB writes to settle
+      await new Promise(r => setTimeout(r, 500));
 
-      // Run ZIP+upload in background (non-blocking)
-      setImmediate(async () => {
-        try {
-          const { data: allParts } = await supabase.from('file_chunks_temp')
-            .select('*').eq('file_id', fileId).order('chunk_index');
+      // Get ALL parts from temp table
+      const { data: allParts } = await supabase.from('file_chunks_temp')
+        .select('*').eq('file_id', fileId).order('chunk_index');
 
-          const { data: existingFile } = await supabase.from('files').select('id').eq('id', fileId).single();
-          if (!existingFile) {
-            const totalParts = allParts?.length || 1;
-            const { error: dbErr } = await supabase.from('files').insert({
-              id: fileId, user_id: req.user.userId, folder_id: folderId,
-              original_name: fileName, size: parseInt(fileSize) || 0,
-              total_chunks: totalParts,
-              chunks: JSON.stringify((allParts || []).map(p => ({
-                index: p.chunk_index, zipName: p.chunk_name,
-                size: p.chunk_size, telegram: p.tg_results
-              }))),
-              download_count: 0, created_at: new Date().toISOString()
-            });
-            if (dbErr) throw dbErr;
-            try { await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: parseInt(fileSize) || 0 }); } catch {}
-          }
-          try { await supabase.from('file_chunks_temp').delete().eq('file_id', fileId); } catch {}
-          console.log(`[${fileId}] Background processing complete! ${allParts?.length} ZIP part(s)`);
-        } catch (bgErr) {
-          console.error(`[${fileId}] Background error:`, bgErr.message);
-        }
-      });
-      return;
+      const totalParts = (allParts?.length || 0);
+      console.log(`[${fileId}] Last chunk received. Total ZIP parts in DB: ${totalParts}`);
+
+      const { data: existingFile } = await supabase.from('files').select('id').eq('id', fileId).single();
+      if (!existingFile) {
+        const { error: dbErr } = await supabase.from('files').insert({
+          id: fileId, user_id: req.user.userId, folder_id: folderId,
+          original_name: fileName, size: parseInt(fileSize) || 0,
+          total_chunks: totalParts,
+          chunks: JSON.stringify((allParts || []).map(p => ({
+            index: p.chunk_index, zipName: p.chunk_name,
+            size: p.chunk_size, telegram: p.tg_results
+          }))),
+          download_count: 0, created_at: new Date().toISOString()
+        });
+        if (dbErr) throw dbErr;
+        try { await supabase.rpc('increment_storage', { p_user_id: req.user.userId, bytes: parseInt(fileSize) || 0 }); } catch {}
+      }
+      try { await supabase.from('file_chunks_temp').delete().eq('file_id', fileId); } catch {}
+
+      console.log(`[${fileId}] Upload finalized! ${totalParts} ZIP part(s)`);
+      return res.json({ done: true, fileId, parts: totalParts });
     }
 
     res.json({ done: false, received: idx + 1, total });

@@ -1014,6 +1014,10 @@ async function startUpload(){
   if(!uploadQueue.length) return alert('Please select files');
   // Sort: small files first for faster visual progress
   uploadQueue = [...uploadQueue].sort((a, b) => a.size - b.size);
+  // Request notification permission for background progress
+  if('Notification' in window && Notification.permission === 'default'){
+    Notification.requestPermission();
+  }
   if(!unlocked.has(folderId)){
     pendingFolderId=folderId;
     const opt=document.getElementById('uf').selectedOptions[0];
@@ -1055,6 +1059,10 @@ async function startUpload(){
   btn.disabled=false; btn.textContent='🚀 Upload Files';
   isUploading=false; uploadQueue=[];
   document.getElementById('uz-f').textContent='';
+  // Browser notification
+  if('Notification' in window && Notification.permission === 'granted'){
+    new Notification('CloudVault', { body: 'Upload complete! All files saved.', icon: 'https://arafat151.github.io/cloudvault/favicon.ico' });
+  }
   loadDash();
 }
 
@@ -1106,8 +1114,7 @@ async function doUploadFile(file, folderId, fileIdx, totalFiles){
         clearTimeout(timer);
         if(!r.ok){ const e = await r.json(); throw new Error(e.error || 'Upload failed'); }
         const result = await r.json();
-
-        // Server processing ZIP in background - poll until done
+        // If server still processing (shouldn't happen now but keep as fallback)
         if(isLast && result.processing){
           await pollUntilDone(fileId, file.name);
         }
@@ -1276,9 +1283,15 @@ async function startDownload(fileId, fileName){
 
   try{
     const url = `${API}/api/file/${fileId}?password=${encodeURIComponent(pw)}`;
+
+    // Update title to show downloading
+    const origTitle = document.title;
+    document.title = '⬇️ Downloading...';
+
     const r = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
 
     if(!r.ok){
+      document.title = origTitle;
       const d = await r.json();
       closeModal('mod-dl');
       return alert('Error: ' + (d.error || 'Download failed'));
@@ -1289,8 +1302,20 @@ async function startDownload(fileId, fileName){
     const match = cd.match(/filename="(.+?)"/);
     const dlName = match ? decodeURIComponent(match[1]) : (fileName || 'download');
 
-    // Stream to blob and trigger download
+    // Show size info
+    const contentLength = r.headers.get('content-length');
+    if(contentLength && dlContent){
+      const sizeMB = (parseInt(contentLength)/1024/1024).toFixed(1);
+      dlContent.innerHTML = `<div style="text-align:center;padding:2rem">
+        <div class="spin" style="font-size:2rem">⬇️</div>
+        <div style="margin-top:.8rem;font-size:.9rem;font-weight:600">Downloading ${dlName}</div>
+        <div style="margin-top:.4rem;font-size:.78rem;color:var(--mu2)">${sizeMB}MB — please wait, do not close this tab</div>
+      </div>`;
+    }
+
     const blob = await r.blob();
+    document.title = origTitle;
+
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = dlName;
@@ -1300,7 +1325,13 @@ async function startDownload(fileId, fileName){
     URL.revokeObjectURL(a.href);
 
     closeModal('mod-dl');
+
+    // Notification on download complete
+    if('Notification' in window && Notification.permission === 'granted'){
+      new Notification('CloudVault', { body: dlName + ' downloaded!', icon: 'https://arafat151.github.io/cloudvault/favicon.ico' });
+    }
   } catch(e) {
+    document.title = document.title.replace('⬇️ Downloading...','CloudVault');
     closeModal('mod-dl');
     alert('Download error: ' + e.message);
   }
