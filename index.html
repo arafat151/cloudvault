@@ -1272,22 +1272,31 @@ async function startDownload(fileId, fileName){
     if(pw === null) return;
   }
 
-  // Show loading modal
   const dlContent = document.getElementById('dl-content');
-  dlContent.innerHTML = `<div style="text-align:center;padding:2rem">
-    <div class="spin" style="font-size:2rem">⏳</div>
-    <div style="margin-top:.8rem;font-size:.9rem;font-weight:600">Downloading...</div>
-    <div style="margin-top:.4rem;font-size:.78rem;color:var(--mu2)">Large files may take a few minutes</div>
-  </div>`;
   document.getElementById('mod-dl').classList.add('show');
+
+  const origTitle = document.title;
+
+  function updateDlUI(pct, loaded, total, name){
+    const loadedMB = (loaded/1024/1024).toFixed(1);
+    const totalMB = total ? (total/1024/1024).toFixed(1) : '?';
+    document.title = `⬇️ ${pct}% — CloudVault`;
+    dlContent.innerHTML = `
+      <div style="margin-bottom:.8rem">
+        <div style="font-size:.875rem;font-weight:700;margin-bottom:.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name||'Downloading...'}</div>
+        <div style="font-size:.78rem;color:var(--mu2)">${loadedMB}MB ${total?'/ '+totalMB+'MB':''}</div>
+      </div>
+      <div style="background:var(--s3);border-radius:100px;height:8px;overflow:hidden;margin-bottom:.6rem">
+        <div style="height:100%;background:linear-gradient(90deg,var(--p),var(--p2));border-radius:100px;transition:width .3s;width:${pct}%"></div>
+      </div>
+      <div style="text-align:center;font-size:1.2rem;font-weight:800;color:var(--p)">${pct}%</div>
+      <div style="text-align:center;font-size:.75rem;color:var(--mu);margin-top:.4rem">Do not close this tab</div>`;
+  }
+
+  updateDlUI(0, 0, 0, fileName);
 
   try{
     const url = `${API}/api/file/${fileId}?password=${encodeURIComponent(pw)}`;
-
-    // Update title to show downloading
-    const origTitle = document.title;
-    document.title = '⬇️ Downloading...';
-
     const r = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
 
     if(!r.ok){
@@ -1297,25 +1306,27 @@ async function startDownload(fileId, fileName){
       return alert('Error: ' + (d.error || 'Download failed'));
     }
 
-    // Get filename from header
     const cd = r.headers.get('content-disposition') || '';
     const match = cd.match(/filename="(.+?)"/);
     const dlName = match ? decodeURIComponent(match[1]) : (fileName || 'download');
+    const contentLength = parseInt(r.headers.get('content-length') || '0');
 
-    // Show size info
-    const contentLength = r.headers.get('content-length');
-    if(contentLength && dlContent){
-      const sizeMB = (parseInt(contentLength)/1024/1024).toFixed(1);
-      dlContent.innerHTML = `<div style="text-align:center;padding:2rem">
-        <div class="spin" style="font-size:2rem">⬇️</div>
-        <div style="margin-top:.8rem;font-size:.9rem;font-weight:600">Downloading ${dlName}</div>
-        <div style="margin-top:.4rem;font-size:.78rem;color:var(--mu2)">${sizeMB}MB — please wait, do not close this tab</div>
-      </div>`;
+    // Stream with progress tracking
+    const reader = r.body.getReader();
+    const chunks = [];
+    let loaded = 0;
+
+    while(true){
+      const { done, value } = await reader.read();
+      if(done) break;
+      chunks.push(value);
+      loaded += value.length;
+      const pct = contentLength ? Math.round((loaded/contentLength)*100) : 0;
+      updateDlUI(pct, loaded, contentLength, dlName);
     }
 
-    const blob = await r.blob();
     document.title = origTitle;
-
+    const blob = new Blob(chunks);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = dlName;
@@ -1325,13 +1336,9 @@ async function startDownload(fileId, fileName){
     URL.revokeObjectURL(a.href);
 
     closeModal('mod-dl');
-
-    // Notification on download complete
-    if('Notification' in window && Notification.permission === 'granted'){
-      new Notification('CloudVault', { body: dlName + ' downloaded!', icon: 'https://arafat151.github.io/cloudvault/favicon.ico' });
-    }
+    sendNotification('CloudVault ✅', dlName + ' downloaded successfully!');
   } catch(e) {
-    document.title = document.title.replace('⬇️ Downloading...','CloudVault');
+    document.title = origTitle;
     closeModal('mod-dl');
     alert('Download error: ' + e.message);
   }

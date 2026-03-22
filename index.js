@@ -35,9 +35,6 @@ const upload = multer({ dest: '/tmp/cv_up/', limits: { fileSize: 15 * 1024 * 102
   if (!fs.existsSync(`/tmp/${d}/`)) fs.mkdirSync(`/tmp/${d}/`, { recursive: true });
 });
 
-// In-memory tracker: fileId -> { partCount, asmSize }
-const uploadState = new Map();
-
 const auth = (req, res, next) => {
   const t = req.headers.authorization?.replace('Bearer ', '');
   if (!t) return res.status(401).json({ error: 'No token' });
@@ -156,14 +153,14 @@ app.get('/api/bonus-status', auth, async (req, res) => {
 });
 
 // ===== UPLOAD =====
-// Strategy:
-// - Browser sends 10MB chunks
-// - Server appends to /tmp/cv_asm/{fileId}
-// - Every 200MB → ZIP → Telegram → delete asm file → restart fresh assembly
-// - In-memory state tracks part count (no DB query per chunk)
-// - Last chunk → flush whatever remains → save file record
+// How it works:
+// 1. Browser sends 10MB chunks one by one
+// 2. Server appends each chunk to /tmp/cv_asm/{fileId}
+// 3. When assembly >= 200MB: ZIP it → upload to Telegram → delete assembly → start fresh
+// 4. Last chunk: flush whatever remains → ZIP → Telegram → save file record
+// 5. Part count tracked in DB (file_chunks_temp) - survives server restarts
 
-const ZIP_FLUSH_SIZE = 200 * 1024 * 1024; // 200MB per ZIP part
+const ZIP_FLUSH_SIZE = 200 * 1024 * 1024; // 200MB per ZIP
 
 app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => {
   let chunkPath = req.file?.path;
@@ -177,35 +174,29 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
     const asmPath = `/tmp/cv_asm/${fileId}`;
     const zipPw = folderPassword || 'cv_secure';
 
-    // Init state for this file
-    if (!uploadState.has(fileId)) {
-      uploadState.set(fileId, { partCount: 0, parts: [] });
-    }
-    const state = uploadState.get(fileId);
-
-    // Append chunk
+    // Append chunk to assembly file
     const chunkBuf = fs.readFileSync(chunkPath);
     fs.unlinkSync(chunkPath); chunkPath = null;
     fs.appendFileSync(asmPath, chunkBuf);
 
     const asmSize = fs.statSync(asmPath).size;
+    const shouldFlush = (asmSize >= ZIP_FLUSH_SIZE || isLast) && asmSize > 0;
 
-    // Flush to ZIP if: assembly >= flush size OR last chunk
-    const shouldFlush = (asmSize >= ZIP_FLUSH_SIZE || isLast);
+    if (shouldFlush) {
+      // Get current part count from DB (works after server restart)
+      const { count: partCount } = await supabase
+        .from('file_chunks_temp')
+        .select('*', { count: 'exact', head: true })
+        .eq('file_id', fileId);
 
-    if (shouldFlush && asmSize > 0) {
-      const partNum = state.partCount;
-      const innerName = fileName;
+      const partNum = partCount || 0;
       const zipName = `${fileId.slice(-8)}_p${String(partNum + 1).padStart(3,'0')}.zip`;
       const zipPath = `/tmp/cv_zip/${fileId}_p${partNum}.zip`;
 
-      console.log(`[${fileId}] Flushing part ${partNum + 1} (${(asmSize/1024/1024).toFixed(0)}MB) → ${zipName}`);
+      console.log(`[${fileId}] ZIP part ${partNum+1}: ${(asmSize/1024/1024).toFixed(0)}MB → ${zipName}`);
 
-      makeZip(asmPath, innerName, zipPw, zipPath);
-      fs.unlinkSync(asmPath); // Delete assembly file immediately after zip
-
-      const zipSize = fs.statSync(zipPath).size;
-      console.log(`[${fileId}] ZIP created: ${(zipSize/1024/1024).toFixed(0)}MB. Uploading to Telegram...`);
+      makeZip(asmPath, fileName, zipPw, zipPath);
+      fs.unlinkSync(asmPath); // Free disk immediately
 
       const [tg1, tg2] = await Promise.allSettled([
         uploadZipToTelegram(BOTS[0].token, BOTS[0].channel, zipPath, zipName),
@@ -220,7 +211,6 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
 
       if (!tgResults.length) throw new Error(`Telegram upload failed for part ${partNum + 1}`);
 
-      // Save to temp DB
       await supabase.from('file_chunks_temp').insert({
         file_id: fileId, chunk_index: partNum,
         tg_results: tgResults, chunk_name: zipName,
@@ -228,23 +218,22 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
         created_at: new Date().toISOString()
       });
 
-      state.partCount++;
-      console.log(`[${fileId}] Part ${partNum + 1} done ✓ Total so far: ${state.partCount}`);
+      console.log(`[${fileId}] Part ${partNum+1} ✓`);
     }
 
-    // Last chunk — finalize
+    // Last chunk: save file record
     if (isLast) {
-      const { data: folder } = await supabase.from('folders').select('id').eq('id', folderId).eq('user_id', req.user.userId).single();
+      const { data: folder } = await supabase.from('folders').select('id')
+        .eq('id', folderId).eq('user_id', req.user.userId).single();
       if (!folder) throw new Error('Folder not found');
 
-      // Small delay to ensure DB write settled
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 500)); // let DB settle
 
       const { data: allParts } = await supabase.from('file_chunks_temp')
         .select('*').eq('file_id', fileId).order('chunk_index');
 
       const totalParts = allParts?.length || 0;
-      console.log(`[${fileId}] Finalizing. Total ZIP parts: ${totalParts}`);
+      console.log(`[${fileId}] Done! ${totalParts} ZIP parts total`);
 
       const { data: existingFile } = await supabase.from('files').select('id').eq('id', fileId).single();
       if (!existingFile) {
@@ -263,19 +252,14 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
       }
 
       try { await supabase.from('file_chunks_temp').delete().eq('file_id', fileId); } catch {}
-      uploadState.delete(fileId);
-
-      console.log(`[${fileId}] ✅ Upload complete! ${totalParts} ZIP parts`);
       return res.json({ done: true, fileId, parts: totalParts });
     }
 
-    res.json({ done: false, received: idx + 1, total, asmSizeMB: (asmSize/1024/1024).toFixed(1) });
+    res.json({ done: false, received: idx + 1, total });
   } catch (e) {
     if (chunkPath) try { fs.unlinkSync(chunkPath); } catch {}
-    // Cleanup assembly file on error
     const asmPath = `/tmp/cv_asm/${req.body?.fileId}`;
     if (req.body?.fileId && fs.existsSync(asmPath)) try { fs.unlinkSync(asmPath); } catch {}
-    uploadState.delete(req.body?.fileId);
     console.error(`Upload error [${req.body?.fileId}]:`, e.message);
     res.status(500).json({ error: e.message });
   }
