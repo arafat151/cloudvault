@@ -29,11 +29,7 @@ const BOTS = [
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const upload = multer({ dest: '/tmp/cv_up/', limits: { fileSize: 15 * 1024 * 1024 } });
-
-['cv_up','cv_zip','cv_asm'].forEach(d => {
-  if (!fs.existsSync(`/tmp/${d}/`)) fs.mkdirSync(`/tmp/${d}/`, { recursive: true });
-});
+const upload = multer({ dest: '/tmp/', limits: { fileSize: 15 * 1024 * 1024 } });
 
 const auth = (req, res, next) => {
   const t = req.headers.authorization?.replace('Bearer ', '');
@@ -47,27 +43,30 @@ function genPassword(len = 14) {
   return Array.from({ length: len }, () => c[Math.floor(Math.random() * c.length)]).join('');
 }
 
-function makeZip(inputPath, innerName, password, zipPath) {
-  const dir = path.dirname(zipPath);
-  const zipBase = path.basename(zipPath);
-  const namedPath = path.join(dir, innerName);
-  fs.copyFileSync(inputPath, namedPath);
+// Create ZIP with password from a buffer (not file)
+function makeZipFromBuffer(buf, innerName, password) {
+  const tmpDir = `/tmp/ziptmp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  fs.mkdirSync(tmpDir, { recursive: true });
+  const inputPath = path.join(tmpDir, innerName);
+  const zipPath = path.join(tmpDir, 'out.zip');
   try {
-    const r = spawnSync('zip', ['-P', password, zipBase, innerName], { cwd: dir, timeout: 300000 });
-    if (r.status !== 0) throw new Error(r.stderr?.toString() || 'zip failed');
+    fs.writeFileSync(inputPath, buf);
+    const r = spawnSync('zip', ['-P', password, 'out.zip', innerName], { cwd: tmpDir, timeout: 60000 });
+    if (r.status !== 0) throw new Error('zip failed: ' + r.stderr?.toString());
+    if (!fs.existsSync(zipPath)) throw new Error('zip not created');
+    return fs.readFileSync(zipPath);
   } finally {
-    try { fs.unlinkSync(namedPath); } catch {}
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
-  if (!fs.existsSync(zipPath)) throw new Error('ZIP not created');
 }
 
-async function uploadZipToTelegram(botToken, channelId, zipPath, zipName) {
+async function uploadBufToTelegram(botToken, channelId, zipBuf, zipName) {
   const form = new FormData();
   form.append('chat_id', channelId);
-  form.append('document', fs.createReadStream(zipPath), { filename: zipName });
+  form.append('document', zipBuf, { filename: zipName, knownLength: zipBuf.length });
   const res = await axios.post(
     `https://api.telegram.org/bot${botToken}/sendDocument`, form,
-    { headers: form.getHeaders(), maxBodyLength: Infinity, maxContentLength: Infinity, timeout: 300000 }
+    { headers: form.getHeaders(), maxBodyLength: Infinity, maxContentLength: Infinity, timeout: 120000 }
   );
   if (res.data.ok) return { fileId: res.data.result.document.file_id, msgId: res.data.result.message_id };
   throw new Error('Telegram upload failed: ' + (res.data.description || ''));
@@ -153,15 +152,10 @@ app.get('/api/bonus-status', auth, async (req, res) => {
 });
 
 // ===== UPLOAD =====
-// How it works:
-// 1. Browser sends 10MB chunks one by one
-// 2. Server appends each chunk to /tmp/cv_asm/{fileId}
-// 3. When assembly >= 200MB: ZIP it → upload to Telegram → delete assembly → start fresh
-// 4. Last chunk: flush whatever remains → ZIP → Telegram → save file record
-// 5. Part count tracked in DB (file_chunks_temp) - survives server restarts
-
-const ZIP_FLUSH_SIZE = 200 * 1024 * 1024; // 200MB per ZIP
-
+// SIMPLE & RELIABLE:
+// Each 10MB chunk → ZIP with password → upload to Telegram → done
+// No assembly file, no /tmp persistence needed
+// Works perfectly on Render free tier
 app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => {
   let chunkPath = req.file?.path;
   try {
@@ -171,79 +165,68 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
     const idx = parseInt(chunkIndex);
     const total = parseInt(totalChunks);
     const isLast = (idx === total - 1);
-    const asmPath = `/tmp/cv_asm/${fileId}`;
     const zipPw = folderPassword || 'cv_secure';
 
-    // Append chunk to assembly file
+    // Read chunk into memory (max 10MB)
     const chunkBuf = fs.readFileSync(chunkPath);
     fs.unlinkSync(chunkPath); chunkPath = null;
-    fs.appendFileSync(asmPath, chunkBuf);
 
-    const asmSize = fs.statSync(asmPath).size;
-    const shouldFlush = (asmSize >= ZIP_FLUSH_SIZE || isLast) && asmSize > 0;
+    // Name inside ZIP: original filename (all chunks have same inner name)
+    const innerName = fileName;
+    const zipName = `${fileId.slice(-8)}_${String(idx + 1).padStart(4,'0')}of${String(total).padStart(4,'0')}.zip`;
 
-    if (shouldFlush) {
-      // Get current part count from DB (works after server restart)
-      const { count: partCount } = await supabase
-        .from('file_chunks_temp')
-        .select('*', { count: 'exact', head: true })
-        .eq('file_id', fileId);
+    console.log(`[${fileId}] Chunk ${idx+1}/${total} (${(chunkBuf.length/1024/1024).toFixed(1)}MB) → ${zipName}`);
 
-      const partNum = partCount || 0;
-      const zipName = `${fileId.slice(-8)}_p${String(partNum + 1).padStart(3,'0')}.zip`;
-      const zipPath = `/tmp/cv_zip/${fileId}_p${partNum}.zip`;
+    // Create ZIP from chunk buffer
+    const zipBuf = makeZipFromBuffer(chunkBuf, innerName, zipPw);
 
-      console.log(`[${fileId}] ZIP part ${partNum+1}: ${(asmSize/1024/1024).toFixed(0)}MB → ${zipName}`);
+    // Upload ZIP to both Telegram bots
+    const [tg1, tg2] = await Promise.allSettled([
+      uploadBufToTelegram(BOTS[0].token, BOTS[0].channel, zipBuf, zipName),
+      uploadBufToTelegram(BOTS[1].token, BOTS[1].channel, zipBuf, zipName),
+    ]);
 
-      makeZip(asmPath, fileName, zipPw, zipPath);
-      fs.unlinkSync(asmPath); // Free disk immediately
+    const tgResults = [
+      tg1.status === 'fulfilled' ? { botIndex: 0, ...tg1.value } : null,
+      tg2.status === 'fulfilled' ? { botIndex: 1, ...tg2.value } : null,
+    ].filter(Boolean);
 
-      const [tg1, tg2] = await Promise.allSettled([
-        uploadZipToTelegram(BOTS[0].token, BOTS[0].channel, zipPath, zipName),
-        uploadZipToTelegram(BOTS[1].token, BOTS[1].channel, zipPath, zipName),
-      ]);
-      try { fs.unlinkSync(zipPath); } catch {}
+    if (!tgResults.length) throw new Error('Telegram upload failed');
 
-      const tgResults = [
-        tg1.status === 'fulfilled' ? { botIndex: 0, ...tg1.value } : null,
-        tg2.status === 'fulfilled' ? { botIndex: 1, ...tg2.value } : null,
-      ].filter(Boolean);
+    console.log(`[${fileId}] Chunk ${idx+1} uploaded ✓`);
 
-      if (!tgResults.length) throw new Error(`Telegram upload failed for part ${partNum + 1}`);
-
-      await supabase.from('file_chunks_temp').insert({
-        file_id: fileId, chunk_index: partNum,
-        tg_results: tgResults, chunk_name: zipName,
-        chunk_size: asmSize, user_id: req.user.userId,
-        created_at: new Date().toISOString()
-      });
-
-      console.log(`[${fileId}] Part ${partNum+1} ✓`);
-    }
+    // Save chunk to temp table
+    await supabase.from('file_chunks_temp').insert({
+      file_id: fileId, chunk_index: idx,
+      tg_results: tgResults, chunk_name: zipName,
+      chunk_size: chunkBuf.length,
+      user_id: req.user.userId,
+      created_at: new Date().toISOString()
+    });
 
     // Last chunk: save file record
     if (isLast) {
-      const { data: folder } = await supabase.from('folders').select('id')
-        .eq('id', folderId).eq('user_id', req.user.userId).single();
+      const { data: folder } = await supabase.from('folders').select('id').eq('id', folderId).eq('user_id', req.user.userId).single();
       if (!folder) throw new Error('Folder not found');
 
-      await new Promise(r => setTimeout(r, 500)); // let DB settle
+      await new Promise(r => setTimeout(r, 500));
 
-      const { data: allParts } = await supabase.from('file_chunks_temp')
+      const { data: allChunks } = await supabase.from('file_chunks_temp')
         .select('*').eq('file_id', fileId).order('chunk_index');
 
-      const totalParts = allParts?.length || 0;
-      console.log(`[${fileId}] Done! ${totalParts} ZIP parts total`);
+      console.log(`[${fileId}] All done! ${allChunks?.length} chunks in DB`);
 
       const { data: existingFile } = await supabase.from('files').select('id').eq('id', fileId).single();
       if (!existingFile) {
         const { error: dbErr } = await supabase.from('files').insert({
           id: fileId, user_id: req.user.userId, folder_id: folderId,
           original_name: fileName, size: parseInt(fileSize) || 0,
-          total_chunks: totalParts,
-          chunks: JSON.stringify((allParts || []).map(p => ({
-            index: p.chunk_index, zipName: p.chunk_name,
-            size: p.chunk_size, telegram: p.tg_results
+          total_chunks: allChunks?.length || total,
+          chunks: JSON.stringify((allChunks || []).map(c => ({
+            index: c.chunk_index,
+            zipName: c.chunk_name,
+            size: c.chunk_size,
+            telegram: c.tg_results
           }))),
           download_count: 0, created_at: new Date().toISOString()
         });
@@ -252,20 +235,20 @@ app.post('/api/chunk/upload', auth, upload.single('chunk'), async (req, res) => 
       }
 
       try { await supabase.from('file_chunks_temp').delete().eq('file_id', fileId); } catch {}
-      return res.json({ done: true, fileId, parts: totalParts });
+      return res.json({ done: true, fileId, chunks: allChunks?.length });
     }
 
     res.json({ done: false, received: idx + 1, total });
   } catch (e) {
     if (chunkPath) try { fs.unlinkSync(chunkPath); } catch {}
-    const asmPath = `/tmp/cv_asm/${req.body?.fileId}`;
-    if (req.body?.fileId && fs.existsSync(asmPath)) try { fs.unlinkSync(asmPath); } catch {}
-    console.error(`Upload error [${req.body?.fileId}]:`, e.message);
+    console.error(`Upload error [${req.body?.fileId}] chunk ${req.body?.chunkIndex}:`, e.message);
     res.status(500).json({ error: e.message });
   }
 });
 
 // ===== DOWNLOAD =====
+// Each chunk ZIP → download from Telegram → unzip → stream to user
+// User gets original file seamlessly
 app.get('/api/file/:fileId', auth, async (req, res) => {
   try {
     const { password } = req.query;
@@ -279,48 +262,45 @@ app.get('/api/file/:fileId', auth, async (req, res) => {
       if (!valid) return res.status(403).json({ error: 'Wrong password' });
     }
 
-    const parts = JSON.parse(file.chunks || '[]');
-    parts.sort((a, b) => (a.index || 0) - (b.index || 0));
+    const chunks = JSON.parse(file.chunks || '[]');
+    chunks.sort((a, b) => (a.index || 0) - (b.index || 0));
     const zipPw = password || 'cv_secure';
 
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.original_name)}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
     if (file.size) res.setHeader('Content-Length', file.size);
 
-    // Stream each part: download ZIP → unzip → stream content → cleanup
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const tg = part.telegram?.[0];
-      if (!tg) throw new Error(`No telegram data for part ${i + 1}`);
+    // Stream each chunk
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const tg = chunk.telegram?.[0];
+      if (!tg) throw new Error(`No telegram data for chunk ${i + 1}`);
 
       const botToken = BOTS[tg.botIndex]?.token;
       const url = await getTgFileUrl(botToken, tg.fileId);
-      if (!url) throw new Error(`Cannot get URL for part ${i + 1}`);
+      if (!url) throw new Error(`Cannot get URL for chunk ${i + 1}`);
 
-      const tmpZip = `/tmp/cv_zip/dl_${file.id}_${i}_${Date.now()}.zip`;
-      const tmpDir = `/tmp/cv_zip/dl_${file.id}_${i}_out`;
+      // Download ZIP
+      const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 120000 });
+      const zipBuf = Buffer.from(response.data);
 
+      // Unzip in memory using temp dir
+      const tmpDir = `/tmp/dl_${file.id}_${i}_${Date.now()}`;
+      const tmpZip = `${tmpDir}.zip`;
       try {
-        // Download ZIP from Telegram
-        const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 600000 });
-        fs.writeFileSync(tmpZip, Buffer.from(response.data));
+        fs.writeFileSync(tmpZip, zipBuf);
+        fs.mkdirSync(tmpDir, { recursive: true });
+        spawnSync('unzip', ['-P', zipPw, '-o', tmpZip, '-d', tmpDir], { timeout: 30000 });
 
-        // Unzip
-        if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
-        spawnSync('unzip', ['-P', zipPw, '-o', tmpZip, '-d', tmpDir], { timeout: 120000 });
-
-        // Find extracted file
         const extracted = fs.readdirSync(tmpDir).filter(f => !f.startsWith('.'));
-        if (!extracted.length) throw new Error(`Unzip failed for part ${i + 1}`);
+        if (!extracted.length) throw new Error(`Unzip failed for chunk ${i + 1}`);
 
-        // Stream to response
         const extractedPath = path.join(tmpDir, extracted[0]);
+        const data = fs.readFileSync(extractedPath);
+
+        // Write chunk data to response
         await new Promise((resolve, reject) => {
-          const rs = fs.createReadStream(extractedPath);
-          rs.on('end', resolve);
-          rs.on('error', reject);
-          res.on('close', () => rs.destroy());
-          rs.pipe(res, { end: false });
+          res.write(data, (err) => err ? reject(err) : resolve());
         });
       } finally {
         try { fs.unlinkSync(tmpZip); } catch {}
@@ -429,7 +409,7 @@ app.post('/api/payment', auth, async (req, res) => {
       storage_tb: parseFloat(storageTb) || 0, months: parseInt(months) || 3,
       status: 'pending', created_at: new Date().toISOString()
     });
-    const msg = `💳 Payment!\nUser: ${user?.name} (${user?.email})\nTxn: ${transactionId}\nAmount: ৳${amount}\nNagad: ${nagadNumber}\n${storageGb || '?'}GB × ${months}মাস`;
+    const msg = `💳 Payment!\nUser: ${user?.name} (${user?.email})\nTxn: ${transactionId}\nAmount: ৳${amount}\nNagad: ${nagadNumber}\n${storageGb||'?'}GB × ${months}মাস`;
     try { await axios.post(`https://api.telegram.org/bot${BOTS[0].token}/sendMessage`, { chat_id: ADMIN_TG_ID, text: msg }); } catch {}
     res.json({ success: true, message: '✅ Payment submitted! ১ ঘণ্টার মধ্যে activate হবে।' });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -445,7 +425,7 @@ app.get('/api/admin/stats', async (req, res) => {
       supabase.from('payments').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
       supabase.from('payments').select('amount').eq('status', 'approved'),
     ]);
-    res.json({ userCount, fileCount, pendingCount, totalRevenue: (revenue || []).reduce((a, p) => a + (p.amount || 0), 0) });
+    res.json({ userCount, fileCount, pendingCount, totalRevenue: (revenue||[]).reduce((a,p)=>a+(p.amount||0),0) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -544,10 +524,10 @@ app.get('/api/config', async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => res.json({ status: 'CloudVault API v11 ✅' }));
+app.get('/', (req, res) => res.json({ status: 'CloudVault API v12 ✅ — Per-chunk ZIP' }));
 
 const PORT = process.env.PORT || 3001;
-const server = app.listen(PORT, () => console.log(`CloudVault API v11 on port ${PORT}`));
-server.setTimeout(1800000);
-server.keepAliveTimeout = 1810000;
-server.headersTimeout = 1820000;
+const server = app.listen(PORT, () => console.log(`CloudVault API v12 on port ${PORT}`));
+server.setTimeout(300000); // 5 min per request
+server.keepAliveTimeout = 310000;
+server.headersTimeout = 320000;
