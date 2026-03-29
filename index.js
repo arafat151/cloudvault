@@ -43,18 +43,26 @@ function genPassword(len = 14) {
   return Array.from({ length: len }, () => c[Math.floor(Math.random() * c.length)]).join('');
 }
 
-// Create ZIP with password from a buffer (not file)
+// Create ZIP with password from a buffer
 function makeZipFromBuffer(buf, innerName, password) {
-  const tmpDir = `/tmp/ziptmp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  // Sanitize innerName to avoid shell issues
+  const safeName = innerName.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const tmpDir = `/tmp/zt_${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
   fs.mkdirSync(tmpDir, { recursive: true });
-  const inputPath = path.join(tmpDir, innerName);
+  const inputPath = path.join(tmpDir, safeName);
   const zipPath = path.join(tmpDir, 'out.zip');
   try {
     fs.writeFileSync(inputPath, buf);
-    const r = spawnSync('zip', ['-P', password, 'out.zip', innerName], { cwd: tmpDir, timeout: 60000 });
-    if (r.status !== 0) throw new Error('zip failed: ' + r.stderr?.toString());
-    if (!fs.existsSync(zipPath)) throw new Error('zip not created');
-    return fs.readFileSync(zipPath);
+    console.log(`ZIP: writing ${buf.length} bytes to ${inputPath}`);
+    const r = spawnSync('zip', ['-P', password, 'out.zip', safeName], {
+      cwd: tmpDir, timeout: 60000, encoding: 'utf8'
+    });
+    console.log(`ZIP exit: ${r.status}, stdout: ${r.stdout}, stderr: ${r.stderr}`);
+    if (r.status !== 0) throw new Error('zip failed: ' + (r.stderr || r.stdout));
+    if (!fs.existsSync(zipPath)) throw new Error('zip file not created');
+    const zipBuf = fs.readFileSync(zipPath);
+    console.log(`ZIP created: ${zipBuf.length} bytes`);
+    return zipBuf;
   } finally {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
